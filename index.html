@@ -381,6 +381,10 @@ footer.site span{min-width:0}
 .wb-run>i{width:7px;height:7px;border-radius:99px;background:#63D9C4;
   animation:wbpuls 1.6s ease-in-out infinite}
 @keyframes wbpuls{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* Verweis auf NoteOS */
+.badge.note{text-decoration:none;cursor:pointer}
+.badge.note:hover{border-color:var(--acc,#63D9C4);color:var(--acc,#63D9C4)}
 </style>
 </head>
 <body>
@@ -622,6 +626,16 @@ const WB = (function(){
 })();
 const WB_AB_LS = 'wb-auftragsbuch-data';
 const WB_ZEIT_LS = 'wb-stempeluhr-summe';
+const WB_NOTES_LS = 'wb-noteos-stand';
+
+/* Aussehen gilt für die ganze Werkbank. Geschrieben werden beide
+   Schlüssel — jedes Werkzeug liest beim Start seinen eigenen, und so
+   finden alle denselben Stand vor. Gemeldet wird zusätzlich über den
+   Bus, damit offene Fenster sofort mitziehen. */
+const WB_THEME_KEYS = ['wb-theme', 'wb-cockpit-theme'];
+function wbThemeSichern(t){
+  WB_THEME_KEYS.forEach(k => { try { localStorage.setItem(k, t); } catch (e) {} });
+}
 
 /* ═══════ Datenmodell ═══════ */
 const EMPTY = { app:'werkbank-auftragsbuch', version:1, updated:null, auftraggeber:[], auftraege:[] };
@@ -670,8 +684,16 @@ const rateOf = o => (o.stundensatz != null ? o.stundensatz : (clientOf(o.auftrag
    ab — Sekunden und Wert je Auftrag. Hier wird sie nur gelesen;
    geschrieben wird sie ausschließlich dort. Fehlt sie, bleibt alles
    beim Alten: das Auftragsbuch läuft auch allein. */
-let zeiten = null;
+let zeiten = null, notizen = null;
 function zeitenLesen(){ zeiten = WB.lesen(WB_ZEIT_LS); }
+/* NoteOS zählt, wie viele Notizen unter dem Namen eines Auftraggebers
+   abgelegt sind. Mehr braucht es hier nicht — die Notizen selbst
+   bleiben drüben. */
+function notizenLesen(){ notizen = WB.lesen(WB_NOTES_LS); }
+function notizenVon(name){
+  const j = notizen && notizen.jeKategorie ? notizen.jeKategorie[name] : 0;
+  return j || 0;
+}
 function zeitVonAuftrag(o){
   const z = zeiten && zeiten.jeAuftrag ? zeiten.jeAuftrag[o.id] : null;
   return z && z.sec ? z : null;
@@ -1164,6 +1186,7 @@ function renderDetail({ zoom = false } = {}){
     + '<span class="badge ' + (c.aktiv ? 'on' : 'off') + '"><i></i>' + (c.aktiv ? 'aktiv' : 'inaktiv') + '</span>'
     + '<span class="badge">' + os.length + ' Aufträge</span>'
     + (zeitVonKunde(c.id) ? '<span class="badge book"><i></i>' + dec.format(zeitVonKunde(c.id).sec/3600) + ' h gebucht</span>' : '')
+    + (notizenVon(c.name) ? '<a class="badge note" href="https://maikunverricht.github.io/NoteOS/" target="_blank" rel="noopener">' + notizenVon(c.name) + (notizenVon(c.name) === 1 ? ' Notiz' : ' Notizen') + ' ↗</a>' : '')
     + (sumE ? '<span class="badge">' + eur.format(sumE) + ' offen</span>' : '')
     + (sumH ? '<span class="badge">' + dec.format(sumH) + ' h offen</span>' : '')
     + '</div>'
@@ -1387,12 +1410,15 @@ $('#q').addEventListener('input', e => {
 $('#newClient').addEventListener('click', () => clientDlg(null));
 
 /* ═══════ Theme & Start ═══════ */
-$('#themeBtn').addEventListener('click', () => {
-  const t = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+function themeSetzen(t, melden){
   root.setAttribute('data-theme', t);
-  try { localStorage.setItem('wb-theme', t); } catch (e) {}
   $('meta[name="theme-color"]').content = t === 'light' ? '#EEF1F6' : '#06090E';
+  if (melden) { wbThemeSichern(t); WB.melden('theme', { theme:t }); }
+}
+$('#themeBtn').addEventListener('click', () => {
+  themeSetzen(root.getAttribute('data-theme') === 'light' ? 'dark' : 'light', true);
 });
+WB.horchen('theme', n => { if (n.theme === 'light' || n.theme === 'dark') themeSetzen(n.theme, false); });
 $('meta[name="theme-color"]').content = root.getAttribute('data-theme') === 'light' ? '#EEF1F6' : '#06090E';
 $('#yr').textContent = new Date().getFullYear();
 addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
@@ -1404,6 +1430,7 @@ function render(){ recompute(); renderAZ(); renderKPIs(); renderDeck(); renderDe
    Stempeluhr nach. Beide laufen aber auch allein weiter. */
 WB.horchen('zeiten', () => { zeitenLesen(); render(); });
 WB.horchen('uhr',    () => { zeitenLesen(); render(); });
+WB.horchen('noteos', () => { notizenLesen(); render(); });
 addEventListener('visibilitychange', () => {
   if (document.hidden) return;
   const vorher = JSON.stringify(zeiten && zeiten.stand);
@@ -1411,7 +1438,7 @@ addEventListener('visibilitychange', () => {
   if (JSON.stringify(zeiten && zeiten.stand) !== vorher) render();
 });
 
-zeitenLesen();
+zeitenLesen(); notizenLesen();
 boot().then(() => {
   render();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
