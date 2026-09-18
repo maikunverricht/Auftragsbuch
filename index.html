@@ -195,9 +195,33 @@ html[data-theme="light"] .vcard.is-center{box-shadow:0 40px 80px -38px rgba(30,4
 /* ── Detail ───────────────────────────────── */
 .detail{margin-top:26px;border:1px solid var(--line);border-radius:20px;background:var(--glass);box-shadow:var(--shadow-lg);
   -webkit-backdrop-filter:blur(15px) saturate(1.3);backdrop-filter:blur(15px) saturate(1.3);padding:clamp(18px,3vw,28px)}
-.d-head{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap}
-.d-head h2{margin:0;font-size:clamp(22px,3.4vw,30px);letter-spacing:-.035em;font-weight:700;font-variation-settings:'wdth' 110;line-height:1.15}
-.d-head .acts{margin-left:auto;display:flex;gap:7px;flex-wrap:wrap}
+/* Aufgezoomte Visitenkarte */
+.hero-card{position:relative;border-radius:19px;border:1px solid var(--glass-edge);background:var(--card-face);
+  box-shadow:var(--shadow-lg);padding:26px 22px 22px;overflow:hidden;text-align:center;transform-origin:50% 0%}
+.hero-card::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;
+  background:linear-gradient(90deg,var(--em-1),var(--em-3))}
+.hero-card .edit{position:absolute;top:14px;right:14px;z-index:2}
+.hero-card.inactive .hc-mono{filter:saturate(.25)}
+.hc-mono{width:84px;height:84px;margin:2px auto 0;border-radius:50%;display:grid;place-items:center;
+  font-family:var(--mono);font-size:30px;letter-spacing:.02em;color:var(--amber);
+  background:radial-gradient(circle at 50% 35%,color-mix(in srgb,var(--amber) 30%,transparent),color-mix(in srgb,var(--amber) 13%,transparent));
+  border:1px solid color-mix(in srgb,var(--amber) 34%,transparent)}
+.hc-eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-3);margin-top:15px}
+.hero-card h2{margin:7px 0 0;font-size:clamp(25px,4.4vw,38px);letter-spacing:-.04em;line-height:1.08;
+  font-weight:700;font-variation-settings:'wdth' 112}
+.hc-sub{margin-top:5px;color:var(--text-2);font-size:15.5px}
+.hc-badges{display:flex;justify-content:center;gap:7px;flex-wrap:wrap;margin-top:13px}
+.hc-actions{display:flex;justify-content:center;gap:clamp(14px,4vw,26px);margin-top:22px;flex-wrap:wrap}
+.actw{display:flex;flex-direction:column;align-items:center;gap:7px}
+.actw em{font-style:normal;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--text-3)}
+.act{width:60px;height:60px;border-radius:50%;display:grid;place-items:center;text-decoration:none;cursor:pointer;
+  border:1px solid var(--line);background:var(--glass);color:var(--text);
+  transition:background var(--t-s),border-color var(--t-s),transform var(--t-s)}
+.act svg{width:23px;height:23px}
+.act:hover{background:color-mix(in srgb,var(--amber) 18%,transparent);border-color:var(--line-hi);transform:translateY(-2px)}
+.act:active{transform:translateY(0)}
+.actw.off .act{opacity:.3;pointer-events:none}
+.actw.off em{opacity:.4}
 .badge{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;
   text-transform:uppercase;border:1px solid var(--line);border-radius:100px;padding:3px 9px;color:var(--text-3);white-space:nowrap}
 .badge i{width:7px;height:7px;border-radius:50%;background:currentColor;font-style:normal}
@@ -215,21 +239,47 @@ html[data-theme="light"] .vcard.is-center{box-shadow:0 40px 80px -38px rgba(30,4
 .notes dt{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--text-3);margin:0 0 5px}
 .notes dd{margin:0;white-space:pre-wrap;color:var(--text-2);font-size:15px}
 
-.sec-head{display:flex;align-items:center;gap:12px;margin:26px 0 12px;flex-wrap:wrap}
-.sec-head h3{margin:0;font-size:17px;letter-spacing:-.02em;font-weight:700;font-variation-settings:'wdth' 108}
-.sec-head .pill{margin-left:auto}
+/* Ausklappbare Abschnitte */
+.fold{display:flex;align-items:center;gap:11px;width:100%;margin-top:22px;padding:14px 17px;text-align:left;
+  border:1px solid var(--line);border-radius:15px;background:var(--glass-2);cursor:pointer;
+  transition:border-color var(--t-s),border-radius var(--t-s)}
+.fold:hover{border-color:var(--line-hi)}
+.fold h3{margin:0;font-size:17px;letter-spacing:-.02em;font-weight:700;font-variation-settings:'wdth' 108}
+.fold .chev{margin-left:auto;flex:none;width:18px;height:18px;color:var(--text-3);transition:transform var(--t-m)}
+.fold[aria-expanded="true"]{border-bottom-left-radius:0;border-bottom-right-radius:0}
+.fold[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.foldw{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--t-m) cubic-bezier(.2,.8,.2,1)}
+.foldw.open{grid-template-rows:1fr}
+.foldw > .inner{overflow:hidden;min-height:0}
+.foldbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:12px 14px;
+  border:1px solid var(--line);border-top:0;background:var(--glass)}
+.foldbar .pill{margin-left:auto}
 .ofilter{display:inline-flex;gap:4px;flex-wrap:wrap}
 .ofilter button{height:26px;padding:0 10px;border-radius:100px;border:1px solid var(--line);background:transparent;cursor:pointer;
   font-family:var(--mono);font-size:11px;color:var(--text-3);transition:all var(--t-s)}
-.ofilter button[aria-pressed="true"]{border-color:var(--line-hi);color:var(--text);background:var(--glass)}
+.ofilter button[aria-pressed="true"]{border-color:var(--line-hi);color:var(--text);background:var(--glass-2)}
 
-.orders{display:grid;grid-template-columns:repeat(auto-fill,minmax(282px,1fr));gap:13px}
-.order{border:1px solid var(--line);border-radius:15px;background:var(--glass-2);padding:15px 16px;display:flex;flex-direction:column;gap:9px;
-  box-shadow:var(--shadow);transition:border-color var(--t-s)}
-.order:hover{border-color:var(--line-hi)}
-.o-top{display:flex;align-items:flex-start;gap:9px}
-.o-top h4{margin:0;font-size:16px;letter-spacing:-.015em;line-height:1.25;font-weight:700}
-.o-top .st{margin-left:auto;flex:none}
+/* Auftragszeilen, selbst wieder aufklappbar */
+.olist{border:1px solid var(--line);border-top:0;border-radius:0 0 15px 15px;overflow:hidden;background:var(--glass-2)}
+.orow + .orow{border-top:1px solid var(--line)}
+.orow-head{display:flex;align-items:center;gap:11px;width:100%;padding:13px 16px;border:0;background:transparent;
+  cursor:pointer;text-align:left;transition:background var(--t-s)}
+.orow-head:hover{background:var(--glass)}
+.orow-head .nm{font-size:15.5px;font-weight:600;letter-spacing:-.015em;line-height:1.3;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.orow-head .pn{font-family:var(--mono);font-size:11px;color:var(--text-3);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.orow-head .rate{font-family:var(--mono);font-size:12.5px;color:var(--text-2);white-space:nowrap;flex:none}
+.orow-head .rate.own{color:var(--amber)}
+.orow-head .chev{flex:none;width:16px;height:16px;color:var(--text-3);transition:transform var(--t-m)}
+.orow-head[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.orow-head .st{flex:none}
+.orow-body{padding:0 16px 15px;display:flex;flex-direction:column;gap:11px}
+.o-desc{margin:0;font-size:14.5px;color:var(--text-2);line-height:1.5}
+.o-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:9px 14px;
+  font-family:var(--mono);font-size:11.5px;color:var(--text-3);border-top:1px solid var(--line);padding-top:11px}
+.o-meta b{display:block;color:var(--text);font-weight:500;font-size:13px;margin-top:2px}
+.o-acts{display:flex;gap:6px;flex-wrap:wrap}
 .st{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
   border-radius:100px;padding:3px 9px;border:1px solid currentColor;white-space:nowrap}
 .st i{width:6px;height:6px;border-radius:50%;background:currentColor;font-style:normal}
@@ -238,14 +288,9 @@ html[data-theme="light"] .vcard.is-center{box-shadow:0 40px 80px -38px rgba(30,4
 .st[data-s="pausiert"]{color:var(--warn)}
 .st[data-s="abgeschlossen"]{color:var(--text-2)}
 .st[data-s="abgerechnet"]{color:var(--amber)}
-.o-num{font-family:var(--mono);font-size:11.5px;color:var(--text-3)}
-.o-desc{margin:0;font-size:14px;color:var(--text-2);line-height:1.45;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.o-meta{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;font-family:var(--mono);font-size:11.5px;color:var(--text-3);
-  border-top:1px solid var(--line);padding-top:9px;margin-top:auto}
-.o-meta b{color:var(--text);font-weight:500}
-.o-acts{display:flex;gap:6px}
 .o-rate{color:var(--amber)}
-.hint{color:var(--text-3);font-size:14px;margin:0;padding:18px;border:1px dashed var(--line);border-radius:15px;text-align:center}
+.hint{color:var(--text-3);font-size:14px;margin:0;padding:22px 18px;text-align:center}
+.hint.solo{border:1px dashed var(--line);border-radius:15px}
 
 /* ── Formulare ───────────────────────────────── */
 dialog{border:0;padding:0;background:transparent;max-width:min(680px,94vw);width:100%;color:var(--text)}
@@ -288,6 +333,8 @@ footer.site{position:relative;max-width:var(--max);margin:0 auto;padding:24px va
   font-family:var(--mono);font-size:12px;color:var(--text-3)}
 footer.site a{text-decoration:none}
 footer.site a:hover{color:var(--text)}
+footer.site .f-r{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+footer.site span{min-width:0}
 
 @media (max-width:760px){
   :root{--pad:16px}
@@ -307,7 +354,10 @@ footer.site a:hover{color:var(--text)}
   .az button{flex:none}
   .stage{height:clamp(228px,58vw,300px)}
   .fields{grid-template-columns:1fr 1fr}
-  .orders{grid-template-columns:1fr}
+  .hc-actions{gap:12px}
+  .act{width:54px;height:54px}
+  .act svg{width:21px;height:21px}
+  .hero-card{padding:22px 16px 20px}
   .form{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion:reduce){
@@ -373,7 +423,7 @@ footer.site a:hover{color:var(--text)}
 
 <footer class="site">
   <span>© <span id="yr"></span> Maik Unverricht · Auftragsbuch</span>
-  <span>
+  <span class="f-r">
     <button class="pill sm" id="exportBtn" type="button">Export</button>
     <button class="pill sm" id="importBtn" type="button">Import</button>
     <a href="https://maikunverricht.github.io/WerkbankUnverricht/">Werkbank ↗</a>
@@ -628,7 +678,7 @@ async function fsNew(){
 }
 async function fsDetach(){
   handle = null; ready = false; await idb.del('handle'); chipIdle();
-  localStorage.setItem(LS_KEY, JSON.stringify(data));
+  spiegeln();
   fileDlg(); toast('Verknüpfung gelöst – Daten liegen wieder im Browser.');
 }
 
@@ -688,6 +738,7 @@ $('#fsDetach').addEventListener('click', fsDetach);
 
 /* ═══════ Ansicht: Filter & Auswahl ═══════ */
 let filter = 'alle', query = '', letter = null, center = 0, oFilter = 'alle', selectedId = null;
+let foldOpen = true, openOrderId = null;
 
 function matches(c){
   if (filter === 'aktiv' && !c.aktiv) return false;
@@ -802,11 +853,13 @@ function renderDeck(){
 function goTo(i){
   const n = view.length;
   if (!n) return;
+  const before = selectedId;
   center = n > 3 ? ((i % n) + n) % n : Math.max(0, Math.min(n - 1, i));
   selectedId = view[center].id;
+  if (selectedId !== before) openOrderId = null;
   layout();
-  $('#pos').textContent = (center + 1) + ' / ' + view.length;
-  renderAZ(); renderDetail();
+  $('#pos').textContent = (center + 1) + ' / ' + n;
+  renderAZ(); renderDetail({ zoom: selectedId !== before });
 }
 
 /* Ziehen / Wischen */
@@ -889,32 +942,52 @@ function renderKPIs(){
 }
 
 /* ═══════ Detailbereich ═══════ */
+const CHEV = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+const ICON = {
+  tel:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 3h3l1.5 4-2 1.3a12.5 12.5 0 0 0 5.6 5.6l1.3-2 4 1.5v3a2 2 0 0 1-2.2 2A17.5 17.5 0 0 1 4.6 5.2 2 2 0 0 1 6.6 3z"/></svg>',
+  sms:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.6 9.6 0 0 1-2.9-.4L3 21l1.6-4.2A8.2 8.2 0 0 1 3.6 12a8.4 8.4 0 0 1 8.6-8.4A8.4 8.4 0 0 1 21 11.5z"/></svg>',
+  mail:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="m3 7 9 6 9-6"/></svg>',
+  map:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.7 7-11a7 7 0 1 0-14 0c0 5.3 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>'
+};
+function actionHTML(icon, label, href, ok){
+  return '<div class="actw' + (ok ? '' : ' off') + '">'
+    + (ok ? '<a class="act" href="' + esc(href) + '"' + (icon === 'map' ? ' target="_blank" rel="noopener"' : '') + ' aria-label="' + label + '">' + ICON[icon] + '</a>'
+          : '<span class="act" aria-hidden="true">' + ICON[icon] + '</span>')
+    + '<em>' + label + '</em></div>';
+}
+
 function orderHTML(o){
   const r = rateOf(o);
   const own = o.stundensatz != null;
   const s = fmtDate(o.start), e = fmtDate(o.ende);
   const span = s && e ? s + ' – ' + e : (s ? 'ab ' + s : (e ? 'bis ' + e : '–'));
-  return '<article class="order" data-o="' + esc(o.id) + '">'
-    + '<div class="o-top"><div style="min-width:0"><h4>' + esc(o.name) + '</h4>'
-    + (o.projektnummer ? '<div class="o-num">' + esc(o.projektnummer) + '</div>' : '')
-    + '</div><span class="st" data-s="' + esc(o.status) + '"><i></i>' + esc(o.status) + '</span></div>'
+  const open = openOrderId === o.id;
+  return '<div class="orow">'
+    + '<button class="orow-head" type="button" data-row="' + esc(o.id) + '" aria-expanded="' + open + '">'
+    + '<span class="st" data-s="' + esc(o.status) + '"><i></i>' + esc(o.status) + '</span>'
+    + '<span style="min-width:0;flex:1"><span class="nm" style="display:block">' + esc(o.name) + '</span>'
+    + (o.projektnummer ? '<span class="pn">' + esc(o.projektnummer) + '</span>' : '') + '</span>'
+    + '<span class="rate' + (own ? ' own' : '') + '">' + (r != null ? eur2.format(r) + '/h' : '–') + '</span>'
+    + CHEV + '</button>'
+    + '<div class="foldw' + (open ? ' open' : '') + '"><div class="inner"><div class="orow-body">'
     + (o.beschreibung ? '<p class="o-desc">' + esc(o.beschreibung) + '</p>' : '')
     + '<div class="o-meta">'
-    + '<span>Zeitraum<br><b>' + esc(span) + '</b></span>'
-    + '<span>Satz<br><b class="' + (own ? 'o-rate' : '') + '">' + (r != null ? eur2.format(r) + '/h' + (own ? ' *' : '') : '–') + '</b></span>'
-    + '<span>Budget Std.<br><b>' + (o.budgetStunden != null ? dec.format(o.budgetStunden) + ' h' : '–') + '</b></span>'
-    + '<span>Budget €<br><b>' + (o.budgetEuro != null ? eur.format(o.budgetEuro) : '–') + '</b></span>'
+    + '<span>Zeitraum<b>' + esc(span) + '</b></span>'
+    + '<span>Stundensatz<b class="' + (own ? 'o-rate' : '') + '">' + (r != null ? eur2.format(r) + ' / h' : '–') + (own ? ' *' : '') + '</b></span>'
+    + '<span>Budget Stunden<b>' + (o.budgetStunden != null ? dec.format(o.budgetStunden) + ' h' : '–') + '</b></span>'
+    + '<span>Budget Euro<b>' + (o.budgetEuro != null ? eur.format(o.budgetEuro) : '–') + '</b></span>'
     + '</div>'
+    + (own ? '<div class="o-num" style="font-family:var(--mono);font-size:11px;color:var(--text-3)">* abweichend vom Satz des Auftraggebers</div>' : '')
     + '<div class="o-acts"><button class="pill sm" type="button" data-edit="' + esc(o.id) + '">Bearbeiten</button>'
     + '<button class="pill sm" type="button" data-dup="' + esc(o.id) + '">Duplizieren</button></div>'
-    + '</article>';
+    + '</div></div></div></div>';
 }
 
-function renderDetail(){
+function renderDetail({ zoom = false } = {}){
   const box = $('#detail');
   const c = view[center];
   if (!c) {
-    box.innerHTML = '<p class="hint">Wähle links einen Buchstaben oder lege einen Auftraggeber an – hier erscheinen dann Kontakt, Konditionen und alle Aufträge.</p>';
+    box.innerHTML = '<p class="hint solo">Wähle oben einen Buchstaben oder lege einen Auftraggeber an – hier erscheinen dann Kontakt, Konditionen und alle Aufträge.</p>';
     return;
   }
   const os = ordersOf(c.id).slice().sort((a,b) => {
@@ -925,20 +998,33 @@ function renderDetail(){
   const sumH = os.filter(o => OPEN.has(o.status)).reduce((s,o) => s + (o.budgetStunden || 0), 0);
   const sumE = os.filter(o => OPEN.has(o.status)).reduce((s,o) => s + (o.budgetEuro || 0), 0);
 
+  const tel = c.telefon.replace(/[^\d+]/g, '');
+  const openCount = os.filter(o => OPEN.has(o.status)).length;
+
   box.innerHTML =
-      '<div class="d-head">'
-    + '<span class="mono-badge" style="width:46px;height:46px;border-radius:13px;font-size:16px">' + esc(initials(c.name)) + '</span>'
-    + '<div style="min-width:0"><h2>' + esc(c.name) + '</h2>'
-    + '<div style="margin-top:6px;display:flex;gap:7px;flex-wrap:wrap">'
+      '<div class="hero-card' + (c.aktiv ? '' : ' inactive') + '" id="heroCard">'
+    + '<button class="pill icon-btn sm edit" type="button" id="editClient" aria-label="Auftraggeber bearbeiten">✎</button>'
+    + '<div class="hc-mono">' + esc(initials(c.name)) + '</div>'
+    + '<div class="hc-eyebrow">Auftraggeber</div>'
+    + '<h2>' + esc(c.name) + '</h2>'
+    + '<div class="hc-sub">' + esc(c.ansprechpartner || (c.adresse || '').split('\n').filter(Boolean).pop() || '—') + '</div>'
+    + '<div class="hc-badges">'
     + '<span class="badge ' + (c.aktiv ? 'on' : 'off') + '"><i></i>' + (c.aktiv ? 'aktiv' : 'inaktiv') + '</span>'
     + '<span class="badge">' + os.length + ' Aufträge</span>'
     + (sumE ? '<span class="badge">' + eur.format(sumE) + ' offen</span>' : '')
     + (sumH ? '<span class="badge">' + dec.format(sumH) + ' h offen</span>' : '')
+    + '</div>'
+    + '<div class="hc-actions">'
+    + actionHTML('sms',  'Nachricht', 'sms:' + tel, !!tel)
+    + actionHTML('tel',  'Anrufen',   'tel:' + tel, !!tel)
+    + actionHTML('mail', 'E-Mail',    'mailto:' + c.email, !!c.email)
+    + actionHTML('map',  'Adresse',   'https://maps.google.com/?q=' + encodeURIComponent(c.adresse.replace(/\n/g, ', ')), !!c.adresse)
     + '</div></div>'
-    + '<div class="acts">'
-    + '<button class="pill sm" type="button" id="toggleActive">' + (c.aktiv ? 'Auf inaktiv' : 'Auf aktiv') + '</button>'
-    + '<button class="pill sm" type="button" id="editClient">Bearbeiten</button>'
-    + '</div></div>'
+
+    + '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:16px">'
+    + '<button class="pill sm" type="button" id="toggleActive">' + (c.aktiv ? 'Auf inaktiv setzen' : 'Auf aktiv setzen') + '</button>'
+    + '<button class="pill sm" type="button" id="editClient2">Stammdaten bearbeiten</button>'
+    + '</div>'
 
     + '<dl class="fields">'
     + fld('Ansprechpartner', c.ansprechpartner)
@@ -951,24 +1037,62 @@ function renderDetail(){
     + '</dl>'
     + (c.notizen ? '<dl class="notes"><dt>Notizen</dt><dd>' + esc(c.notizen) + '</dd></dl>' : '')
 
-    + '<div class="sec-head"><h3>Aufträge</h3>'
-    + '<div class="ofilter">'
+    + '<button class="fold" type="button" id="foldOrders" aria-expanded="' + foldOpen + '" aria-controls="ordersWrap">'
+    + '<h3>Aufträge</h3>'
+    + '<span class="badge">' + os.length + '</span>'
+    + (openCount ? '<span class="badge on"><i></i>' + openCount + ' offen</span>' : '')
+    + CHEV + '</button>'
+    + '<div class="foldw' + (foldOpen ? ' open' : '') + '" id="ordersWrap"><div class="inner">'
+    + '<div class="foldbar"><div class="ofilter">'
     + ['alle','offen', ...STATUS].map(f => '<button type="button" data-of="' + f + '" aria-pressed="' + (oFilter === f) + '">' + f + '</button>').join('')
-    + '</div>'
-    + '<button class="pill primary sm" type="button" id="newOrder">+ Auftrag</button></div>'
-    + (shown.length ? '<div class="orders">' + shown.map(orderHTML).join('') + '</div>'
-        : '<p class="hint">' + (os.length ? 'Kein Auftrag in dieser Auswahl.' : 'Noch kein Auftrag für ' + esc(c.name) + '.') + '</p>');
+    + '</div><button class="pill primary sm" type="button" id="newOrder">+ Auftrag</button></div>'
+    + (shown.length ? '<div class="olist">' + shown.map(orderHTML).join('') + '</div>'
+        : '<div class="olist"><p class="hint">' + (os.length ? 'Kein Auftrag in dieser Auswahl.' : 'Noch kein Auftrag für ' + esc(c.name) + '.') + '</p></div>')
+    + '</div></div>';
 
   $('#editClient').addEventListener('click', () => clientDlg(c.id));
+  $('#editClient2').addEventListener('click', () => clientDlg(c.id));
   $('#toggleActive').addEventListener('click', () => { c.aktiv = !c.aktiv; save(); render(); });
   $('#newOrder').addEventListener('click', () => orderDlg(null, c.id));
+  $('#foldOrders').addEventListener('click', () => {
+    foldOpen = !foldOpen;
+    $('#foldOrders').setAttribute('aria-expanded', String(foldOpen));
+    $('#ordersWrap').classList.toggle('open', foldOpen);
+  });
+  $$('#detail [data-row]').forEach(b => b.addEventListener('click', () => {
+    openOrderId = openOrderId === b.dataset.row ? null : b.dataset.row;
+    $$('#detail [data-row]').forEach(x => {
+      const on = x.dataset.row === openOrderId;
+      x.setAttribute('aria-expanded', String(on));
+      x.nextElementSibling.classList.toggle('open', on);
+    });
+  }));
   $$('#detail [data-of]').forEach(b => b.addEventListener('click', () => { oFilter = b.dataset.of; renderDetail(); }));
   $$('#detail [data-edit]').forEach(b => b.addEventListener('click', () => orderDlg(b.dataset.edit)));
   $$('#detail [data-dup]').forEach(b => b.addEventListener('click', () => {
     const src = data.auftraege.find(o => o.id === b.dataset.dup); if (!src) return;
     const copy = { ...src, id: uid(), name: src.name + ' (Kopie)', status:'geplant' };
-    data.auftraege.push(copy); save(); renderKPIs(); renderDeck(); renderDetail(); toast('Auftrag dupliziert');
+    data.auftraege.push(copy); openOrderId = copy.id;
+    save(); renderKPIs(); renderDeck(); renderDetail(); toast('Auftrag dupliziert');
   }));
+
+  if (zoom) zoomHero();
+}
+
+/* Die gewählte Visitenkarte zoomt aus dem Bogen nach unten in den Detailbereich. */
+function zoomHero(){
+  if (reduce) return;
+  const hero = $('#heroCard'), card = cards[center];
+  if (!hero || !card || !hero.animate) return;
+  const a = card.getBoundingClientRect(), b = hero.getBoundingClientRect();
+  if (!a.width || !b.width) return;
+  const s = a.width / b.width;
+  const dx = (a.left + a.width / 2) - (b.left + b.width / 2);
+  const dy = a.top - b.top;
+  hero.animate([
+    { transform:'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px) scale(' + s.toFixed(3) + ')', opacity:.25 },
+    { transform:'none', opacity:1 }
+  ], { duration:540, easing:'cubic-bezier(.2,.8,.2,1)' });
 }
 function fld(label, value, raw){
   const v = value == null ? '' : String(value);
