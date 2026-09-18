@@ -576,6 +576,15 @@ async function writeHandle(h, payload){
   await w.close();
 }
 
+/* Lesekopie für die übrigen Werkzeuge der Werkbank. Sie liegen unter
+   derselben Herkunft und lesen den Bestand hier heraus — auch dann,
+   wenn das Auftragsbuch selbst an einer Datei hängt. Geschrieben wird
+   ausschließlich hier. */
+function spiegeln(){
+  try { localStorage.setItem(LS_KEY, JSON.stringify(data)); }
+  catch (e) { /* Platz voll: die Datei bleibt maßgeblich */ }
+}
+
 function save({ immediate = false } = {}){
   data.updated = new Date().toISOString();
   dirty = true; chip('dirty', handle && ready ? handle.name : 'lokal');
@@ -583,7 +592,7 @@ function save({ immediate = false } = {}){
   const run = async () => {
     try {
       if (handle && ready) await writeHandle(handle, data);
-      else localStorage.setItem(LS_KEY, JSON.stringify(data));
+      spiegeln();
       dirty = false; chipIdle();
     } catch (e) {
       chip('local', 'Fehler');
@@ -599,7 +608,7 @@ async function attach(h, { load = true } = {}){
   if (perm !== 'granted' && await h.requestPermission({ mode:'readwrite' }) !== 'granted') return false;
   handle = h; ready = true;
   await idb.set('handle', h);
-  if (load) { data = normalize(await readHandle(h)); center = 0; }
+  if (load) { data = normalize(await readHandle(h)); center = 0; spiegeln(); }
   chipIdle();
   return true;
 }
@@ -628,7 +637,7 @@ async function boot(){
     try {
       const h = await idb.get('handle');
       if (h && await h.queryPermission({ mode:'readwrite' }) === 'granted') {
-        handle = h; ready = true; data = normalize(await readHandle(h)); chipIdle(); return;
+        handle = h; ready = true; data = normalize(await readHandle(h)); spiegeln(); chipIdle(); return;
       }
       if (h) { handle = h; chip('local', h.name + ' – tippen'); }
     } catch (e) { /* Handle nicht mehr gültig */ }
