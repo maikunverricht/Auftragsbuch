@@ -365,6 +365,22 @@ footer.site span{min-width:0}
   .stage .vcard,.toast{transition:none!important}
   .fdot{animation:none}
 }
+
+/* Rückmeldung der Stempeluhr */
+.o-book{color:var(--acc,#63D9C4)}
+.o-bar{margin-top:10px}
+.o-bar>i{display:block;height:6px;border-radius:99px;background:var(--acc,#63D9C4);
+  min-width:2px;transition:width .3s ease}
+.o-bar{position:relative;background:rgba(127,127,127,.18);border-radius:99px;height:6px}
+.o-bar>em{position:absolute;left:0;top:10px;font-style:normal;font-size:11px;
+  font-family:var(--mono,monospace);color:var(--text-3,#8a8f98);white-space:nowrap}
+.o-bar{margin-bottom:22px}
+.o-bar.over>i{background:#F2B33D}
+.badge.book>i{background:var(--acc,#63D9C4)}
+.wb-run{display:inline-flex;align-items:center;gap:6px}
+.wb-run>i{width:7px;height:7px;border-radius:99px;background:#63D9C4;
+  animation:wbpuls 1.6s ease-in-out infinite}
+@keyframes wbpuls{0%,100%{opacity:1}50%{opacity:.25}}
 </style>
 </head>
 <body>
@@ -540,6 +556,73 @@ function toast(msg){
   clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), 2600);
 }
 
+
+/* ════════════════════════════════════════════════════════════════
+   WERKBANK-BUS  ·  gleichlautend in jedem Werkzeug
+   ----------------------------------------------------------------
+   Alle Werkzeuge liegen unter derselben Herkunft
+   (maikunverricht.github.io). Damit teilen sie sich Speicher und
+   IndexedDB — der Pfad spielt dafür keine Rolle. Dieser Block macht
+   aus dem gemeinsamen Speicher eine Verbindung: wer etwas ändert,
+   sagt Bescheid; die anderen ziehen nach, ohne dass jemand neu
+   laden muss. Im selben Fenster, im zweiten Tab und in den Kacheln
+   des Cockpits.
+
+   Kein Server, keine gemeinsame Datei: der Block steht in jeder
+   Einzeldatei wortgleich. Ändert er sich, ändert er sich überall.
+
+   Gespiegelte Bestände (Lesekopien, geschrieben nur vom Eigentümer):
+     wb-auftragsbuch-data    Auftraggeber und Aufträge   (Auftragsbuch)
+     wb-stempeluhr-summe     Stunden je Auftrag          (Stempeluhr)
+   ════════════════════════════════════════════════════════════════ */
+const WB = (function(){
+  const KANAL = 'werkbank', WECK = 'wb-signal';
+  const eigen = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const hoerer = [];
+  let bc = null;
+  try { bc = new BroadcastChannel(KANAL); } catch (e) { /* ältere Browser */ }
+
+  function zustellen(n){
+    if (!n || typeof n !== 'object' || n.von === eigen) return;
+    for (let i = 0; i < hoerer.length; i++) {
+      const h = hoerer[i];
+      if (h.thema && h.thema !== n.thema) continue;
+      try { h.fn(n); } catch (e) {}
+    }
+  }
+  if (bc) bc.onmessage = function(e){ zustellen(e.data); };
+  /* Rückfall für Fenster ohne BroadcastChannel und für Tabs, die den
+     Kanal verpasst haben: das storage-Ereignis feuert in allen
+     übrigen Tabs derselben Herkunft. */
+  addEventListener('storage', function(e){
+    if (e.key !== WECK || !e.newValue) return;
+    try { zustellen(JSON.parse(e.newValue)); } catch (err) {}
+  });
+
+  return {
+    id: eigen,
+    /* Melden, dass sich etwas geändert hat. */
+    melden: function(thema, zusatz){
+      const n = Object.assign({ thema: thema, von: eigen, zeit: Date.now() }, zusatz || {});
+      if (bc) { try { bc.postMessage(n); } catch (e) {} }
+      try { localStorage.setItem(WECK, JSON.stringify(n)); } catch (e) {}
+    },
+    /* Auf ein Thema horchen — oder mit null auf alle. */
+    horchen: function(thema, fn){ hoerer.push({ thema: thema, fn: fn }); },
+    /* Einen gespiegelten Bestand lesen bzw. schreiben. */
+    lesen: function(schluessel){
+      try { const r = localStorage.getItem(schluessel); return r ? JSON.parse(r) : null; }
+      catch (e) { return null; }
+    },
+    schreiben: function(schluessel, wert){
+      try { localStorage.setItem(schluessel, JSON.stringify(wert)); return true; }
+      catch (e) { return false; }
+    }
+  };
+})();
+const WB_AB_LS = 'wb-auftragsbuch-data';
+const WB_ZEIT_LS = 'wb-stempeluhr-summe';
+
 /* ═══════ Datenmodell ═══════ */
 const EMPTY = { app:'werkbank-auftragsbuch', version:1, updated:null, auftraggeber:[], auftraege:[] };
 let data = structuredClone(EMPTY);
@@ -581,6 +664,26 @@ function normalize(raw){
 const ordersOf = id => data.auftraege.filter(o => o.auftraggeberId === id);
 const clientOf = id => data.auftraggeber.find(c => c.id === id) || null;
 const rateOf = o => (o.stundensatz != null ? o.stundensatz : (clientOf(o.auftraggeberId)?.stundensatz ?? null));
+
+/* ═══════ Rückkanal: gebuchte Zeit aus der Stempeluhr ═══════
+   Die Stempeluhr legt unter derselben Herkunft eine Zusammenfassung
+   ab — Sekunden und Wert je Auftrag. Hier wird sie nur gelesen;
+   geschrieben wird sie ausschließlich dort. Fehlt sie, bleibt alles
+   beim Alten: das Auftragsbuch läuft auch allein. */
+let zeiten = null;
+function zeitenLesen(){ zeiten = WB.lesen(WB_ZEIT_LS); }
+function zeitVonAuftrag(o){
+  const z = zeiten && zeiten.jeAuftrag ? zeiten.jeAuftrag[o.id] : null;
+  return z && z.sec ? z : null;
+}
+function zeitVonKunde(id){
+  const z = zeiten && zeiten.jeAuftraggeber ? zeiten.jeAuftraggeber[id] : null;
+  return z && z.sec ? z : null;
+}
+function laeuftGerade(){
+  const l = zeiten && zeiten.laufend;
+  return l && l.aktiv ? l : null;
+}
 
 /* ═══════ Speicher: eigene Datei (File System Access) + lokaler Rückfall ═══════ */
 const LS_KEY = 'wb-auftragsbuch-data';
@@ -636,6 +739,9 @@ async function writeHandle(h, payload){
 function spiegeln(){
   try { localStorage.setItem(LS_KEY, JSON.stringify(data)); }
   catch (e) { /* Platz voll: die Datei bleibt maßgeblich */ }
+  /* Und Bescheid sagen — die Stempeluhr zieht die Stammdaten
+     daraufhin von selbst nach, ohne Neuladen. */
+  WB.melden('auftragsbuch', { stand: data.updated });
 }
 
 function save({ immediate = false } = {}){
@@ -983,6 +1089,23 @@ function actionHTML(icon, label, href, ok){
     + '<em>' + label + '</em></div>';
 }
 
+/* Gebuchte Zeit — nur sichtbar, wenn die Stempeluhr etwas gemeldet hat. */
+function gebuchtHTML(o){
+  const z = zeitVonAuftrag(o);
+  if (!z) return '';
+  return '<span>Gebucht<b class="o-book">' + dec.format(z.sec/3600) + ' h</b></span>'
+       + '<span>Erarbeitet<b class="o-book">' + eur.format(z.eur) + '</b></span>';
+}
+function balkenHTML(o){
+  const z = zeitVonAuftrag(o);
+  if (!z || !o.budgetStunden) return '';
+  const ist = z.sec/3600, anteil = ist/o.budgetStunden*100, ueber = anteil > 100;
+  return '<div class="o-bar' + (ueber ? ' over' : '') + '">'
+    + '<i style="width:' + Math.min(100, anteil).toFixed(1) + '%"></i>'
+    + '<em>' + dec.format(ist) + ' von ' + dec.format(o.budgetStunden) + ' h'
+    + (ueber ? ' · über Budget' : ' · ' + Math.round(anteil) + ' %') + '</em></div>';
+}
+
 function orderHTML(o){
   const r = rateOf(o);
   const own = o.stundensatz != null;
@@ -1003,7 +1126,9 @@ function orderHTML(o){
     + '<span>Stundensatz<b class="' + (own ? 'o-rate' : '') + '">' + (r != null ? eur2.format(r) + ' / h' : '–') + (own ? ' *' : '') + '</b></span>'
     + '<span>Budget Stunden<b>' + (o.budgetStunden != null ? dec.format(o.budgetStunden) + ' h' : '–') + '</b></span>'
     + '<span>Budget Euro<b>' + (o.budgetEuro != null ? eur.format(o.budgetEuro) : '–') + '</b></span>'
+    + gebuchtHTML(o)
     + '</div>'
+    + balkenHTML(o)
     + (own ? '<div class="o-num" style="font-family:var(--mono);font-size:11px;color:var(--text-3)">* abweichend vom Satz des Auftraggebers</div>' : '')
     + '<div class="o-acts"><button class="pill sm" type="button" data-edit="' + esc(o.id) + '">Bearbeiten</button>'
     + '<button class="pill sm" type="button" data-dup="' + esc(o.id) + '">Duplizieren</button></div>'
@@ -1038,6 +1163,7 @@ function renderDetail({ zoom = false } = {}){
     + '<div class="hc-badges">'
     + '<span class="badge ' + (c.aktiv ? 'on' : 'off') + '"><i></i>' + (c.aktiv ? 'aktiv' : 'inaktiv') + '</span>'
     + '<span class="badge">' + os.length + ' Aufträge</span>'
+    + (zeitVonKunde(c.id) ? '<span class="badge book"><i></i>' + dec.format(zeitVonKunde(c.id).sec/3600) + ' h gebucht</span>' : '')
     + (sumE ? '<span class="badge">' + eur.format(sumE) + ' offen</span>' : '')
     + (sumH ? '<span class="badge">' + dec.format(sumH) + ' h offen</span>' : '')
     + '</div>'
@@ -1273,6 +1399,19 @@ addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.retur
 
 function render(){ recompute(); renderAZ(); renderKPIs(); renderDeck(); renderDetail(); }
 
+/* Die Stempeluhr meldet jede Buchung; das Auftragsbuch zeichnet
+   daraufhin neu. Und umgekehrt: wird hier gespeichert, zieht die
+   Stempeluhr nach. Beide laufen aber auch allein weiter. */
+WB.horchen('zeiten', () => { zeitenLesen(); render(); });
+WB.horchen('uhr',    () => { zeitenLesen(); render(); });
+addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  const vorher = JSON.stringify(zeiten && zeiten.stand);
+  zeitenLesen();
+  if (JSON.stringify(zeiten && zeiten.stand) !== vorher) render();
+});
+
+zeitenLesen();
 boot().then(() => {
   render();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
