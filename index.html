@@ -58,6 +58,7 @@ html[data-theme="light"]{
   --ok:#1E8D79;--warn:#C98A0C;--off:#7A8491;--bad:#C4405A;--info:#3F6FCB;
 }
 *,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
 html{-webkit-text-size-adjust:100%;scrollbar-gutter:stable;overflow-x:clip}
 body{margin:0;background:var(--void);color:var(--text);font-family:var(--display);font-size:16px;line-height:1.6;
   -webkit-font-smoothing:antialiased;overflow-x:clip;transition:background-color .35s ease,color .35s ease}
@@ -430,7 +431,7 @@ footer.site span{min-width:0}
   </span>
 </footer>
 
-<input type="file" id="fileInput" accept="application/json,.json" hidden>
+<input type="file" id="fileInput" accept=".json,application/json,text/json,text/plain" hidden>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- Auftraggeber-Formular -->
@@ -501,6 +502,8 @@ footer.site span{min-width:0}
     <div class="form" id="fileActions" style="grid-template-columns:1fr">
       <button class="pill primary" type="button" id="fsOpen">Bestehende Datei öffnen</button>
       <button class="pill" type="button" id="fsNew">Neue Datei anlegen</button>
+      <button class="pill" type="button" id="fsExport">Als Datei sichern (Export)</button>
+      <button class="pill" type="button" id="fsImport">Aus Datei laden (Import)</button>
       <button class="pill" type="button" id="fsDetach" hidden>Verknüpfung lösen</button>
     </div>
     <p class="err" id="fsNote" style="color:var(--text-3)" hidden></p>
@@ -664,12 +667,14 @@ async function attach(h, { load = true } = {}){
 }
 
 async function fsOpen(){
+  if (!FSA) { toast('Dieser Browser kann keine Datei verknüpfen – bitte Import verwenden.'); return; }
   try {
     const [h] = await showOpenFilePicker({ multiple:false, types:[{ description:'Auftragsbuch (JSON)', accept:{ 'application/json':['.json'] } }] });
     if (await attach(h)) { render(); toast('Verbunden mit ' + h.name); $('#dlgFile').close(); }
   } catch (e) { if (e.name !== 'AbortError') toast('Datei konnte nicht geöffnet werden.'); }
 }
 async function fsNew(){
+  if (!FSA) { toast('Dieser Browser kann keine Datei anlegen – bitte Export verwenden.'); return; }
   try {
     const h = await showSaveFilePicker({ suggestedName:'auftragsbuch.json',
       types:[{ description:'Auftragsbuch (JSON)', accept:{ 'application/json':['.json'] } }] });
@@ -704,19 +709,41 @@ function fileDlg(){
            : 'Dieser Browser kann nicht direkt in Dateien schreiben. Die Daten liegen im Browser dieses Geräts; sichere sie über <b>Export</b>.');
   $('#fsOpen').hidden = !FSA; $('#fsNew').hidden = !FSA; $('#fsDetach').hidden = !has;
   $('#fsNote').hidden = FSA;
-  $('#fsNote').textContent = FSA ? '' : 'Dateiablage funktioniert in Chrome und Edge am Rechner. Auf dem Handy: Export/Import nutzen.';
+  $('#fsNote').textContent = FSA ? '' : 'Eine Datei dauerhaft verknüpfen können nur Chrome und Edge am Rechner. Hier sicherst du den Bestand über Export – auf dem iPhone landet er über „In Dateien sichern“ z. B. in iCloud Drive.';
   $('#dlgFile').showModal();
 }
 
 /* Export / Import */
-$('#exportBtn').addEventListener('click', () => {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'auftragsbuch-' + new Date().toISOString().slice(0,10) + '.json';
-  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-});
+/* Export: auf dem Handy über das Teilen-Blatt („In Dateien sichern“),
+   sonst als gewöhnlicher Download. Der Link muss dafür im Dokument
+   hängen – ein loser Link löst in Safari nichts aus. */
+async function exportieren(){
+  const json = JSON.stringify(data, null, 2);
+  const name = 'auftragsbuch-' + new Date().toISOString().slice(0,10) + '.json';
+  try {
+    const f = new File([json], name, { type:'application/json' });
+    if (navigator.canShare && navigator.canShare({ files:[f] })) {
+      await navigator.share({ files:[f], title:'Auftragsbuch' });
+      return;
+    }
+  } catch (e) { if (e && e.name === 'AbortError') return; }
+  try {
+    const url = URL.createObjectURL(new Blob([json], { type:'application/json' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = name; a.rel = 'noopener'; a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 8000);
+    toast('Export: ' + name);
+  } catch (e) {
+    toast('Export nicht möglich: ' + (e && e.message ? e.message : e));
+  }
+}
+$('#exportBtn').addEventListener('click', exportieren);
+$('#fsExport').addEventListener('click', exportieren);
 $('#importBtn').addEventListener('click', () => $('#fileInput').click());
+$('#fsImport').addEventListener('click', () => { $('#dlgFile').close(); $('#fileInput').click(); });
 $('#fileInput').addEventListener('change', async e => {
   const f = e.target.files && e.target.files[0]; if (!f) return;
   try {
