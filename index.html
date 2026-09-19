@@ -531,6 +531,727 @@ footer.site span{min-width:0}
   <footer><button class="pill" type="button" data-close style="margin-left:auto">Schließen</button></footer>
 </div></dialog>
 
+<!-- ══════════════════════════════════════════════════════════════
+     LIZENZBLOCK  (lizenz.js + lizenz-tor.js + Konfiguration)
+     Prüfschlüssel der Lizenzstelle ist eingetragen.
+     ══════════════════════════════════════════════════════════════ -->
+<script>
+/* ============================================================
+   WBLizenz — Lizenzbaustein für den Werkzeugkasten
+   ------------------------------------------------------------
+   Stufe A: signierter Schlüssel, offline prüfbar, kein Server.
+   Signatur ECDSA P-256 / SHA-256 über die rohen Bytes des
+   Nutzdaten-JSON. Öffentlicher Schlüssel steht hier im Klartext –
+   das ist in Ordnung, er kann nur prüfen, nicht ausstellen.
+
+   Schlüsselformat (eine Zeile):
+     WB1.<base64url(Nutzdaten-JSON)>.<base64url(Signatur, 64 Byte)>
+
+   Nutzdaten:
+     { v:1, id:"L-2026-0007", n:"Name", e:"mail@…",
+       w:["rechnungsbuch","terminbuch"],      // freigeschaltete Werkzeuge
+       m:"kauf"|"miete", a:"2026-09-19",      // ausgestellt
+       b:"2027-09-19"|null,                   // Wartungsfenster bzw. Laufzeitende
+       s:{ "rechnungsbuch":"<base64>" } }     // optional, erst Stufe B
+
+   Stufe B ist vorbereitet: das Feld `s` trägt je Werkzeug ein
+   Geheimnis, mit dem sich ein verschlüsselt ausgelieferter
+   Codeblock aufsperren lässt. Die Signatur deckt es mit ab,
+   das Format bleibt unverändert.
+   ============================================================ */
+(function (global) {
+  'use strict';
+
+  var LS_KEY   = 'wb-lizenz';
+  var PRAEFIX  = 'WB1.';
+
+  /* Öffentlicher Schlüssel der Lizenzstelle, SPKI als Base64.
+     Wird beim Ausrollen durch den echten Wert ersetzt –
+     die Lizenzstelle zeigt ihn zum Kopieren an. */
+  var PUB_B64 = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAESwn5vJH6rMd87uKAXdmC4qXnI47PQn7lpnDtpPfzuv4bhSIp2QkxeL2RC7cVaXbnD0lZRdh6g3b+x3MYKm61Pg==';
+
+  /* ---------- Kleinkram ---------- */
+
+  function b64urlZuBytes(s) {
+    s = String(s).replace(/-/g, '+').replace(/_/g, '/');
+    while (s.length % 4) s += '=';
+    var bin = atob(s), a = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
+    return a;
+  }
+  function bytesZuB64url(a) {
+    var s = '';
+    for (var i = 0; i < a.length; i++) s += String.fromCharCode(a[i]);
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function b64ZuBytes(s) {
+    var bin = atob(String(s).replace(/\s+/g, '')), a = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
+    return a;
+  }
+  function heute() {
+    var d = new Date();
+    return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+  }
+  function tagDe(iso) {
+    if (!iso) return '';
+    var t = String(iso).split('-');
+    return t.length === 3 ? t[2] + '.' + t[1] + '.' + t[0] : iso;
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function lese(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function schreibe(k, v) {
+    try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); return true; }
+    catch (e) { return false; }
+  }
+
+  /* ---------- Prüfung ---------- */
+
+  var pubCache = null;
+  function pruefbereit() { return !!(PUB_B64 && PUB_B64.indexOf('EINSETZEN') < 0); }
+  function pubKey() {
+    if (pubCache) return pubCache;
+    if (!pruefbereit()) return Promise.reject(new Error('kein-pubkey'));
+    pubCache = crypto.subtle.importKey(
+      'spki', b64ZuBytes(PUB_B64),
+      { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']
+    );
+    return pubCache;
+  }
+
+  /* Prüft einen Schlüsseltext und gibt die Nutzdaten zurück –
+     oder wirft mit einem sprechenden Grund. */
+  /* Nimmt, was eingefügt wurde, und holt den Schlüssel heraus: eine ganze
+     .wblic-Datei mit Kommentarzeilen, eine E-Mail, Zeilenumbrüche mittendrin. */
+  function saeubern(text) {
+    var roh = String(text || '').replace(/\s+/g, '');
+    /* Normalfall: der ganze Schlüssel steckt irgendwo im eingefügten Text. */
+    var m = roh.match(/WB1\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+/i);
+    if (m) return PRAEFIX + m[0].slice(4);
+    /* Vorspann unterwegs verlorengegangen – manche Felder und Zwischenablagen
+       verschlucken den Anfang. Zwei Base64url-Teile mit Punkt dazwischen sind
+       eindeutig genug; die Signatur entscheidet danach ohnehin. */
+    m = roh.match(/^(?:WB1\.?)?([A-Za-z0-9\-_]{20,})\.([A-Za-z0-9\-_]{20,})$/i);
+    if (m) return PRAEFIX + m[1] + '.' + m[2];
+    return roh;
+  }
+
+  function pruefeText(text) {
+    return Promise.resolve().then(function () {
+      var t = saeubern(text);
+      if (!t) throw new Error('leer');
+      if (t.indexOf(PRAEFIX) !== 0) {
+        /* Der Prüfschlüssel der Lizenzstelle ist reines Base64 und beginnt
+           mit MFkw – eine Verwechslung, die ohne Hinweis ratlos macht. */
+        if (/^MFkw[A-Za-z0-9+/=]+$/.test(t)) throw new Error('pruefschluessel');
+        throw new Error('format');
+      }
+      var teile = t.slice(PRAEFIX.length).split('.');
+      if (teile.length !== 2) throw new Error('format');
+      var daten = b64urlZuBytes(teile[0]);
+      var sig   = b64urlZuBytes(teile[1]);
+      return pubKey().then(function (k) {
+        return crypto.subtle.verify(
+          { name: 'ECDSA', hash: 'SHA-256' }, k, sig, daten
+        );
+      }).then(function (ok) {
+        if (!ok) throw new Error('signatur');
+        var p;
+        try { p = JSON.parse(new TextDecoder().decode(daten)); }
+        catch (e) { throw new Error('format'); }
+        if (!p || p.v !== 1 || !Array.isArray(p.w)) throw new Error('format');
+        return p;
+      });
+    });
+  }
+
+  /* Lage eines Werkzeugs. `build` ist das Veröffentlichungsdatum
+     dieser Fassung (ISO), es steht im Werkzeug selbst.
+
+     status: 'frei'        – voller Umfang
+             'nurlesen'    – Miete abgelaufen: lesen und ausgeben ja,
+                             speichern nein. Daten bleiben erreichbar.
+             'schaufenster'– keine gültige Lizenz für dieses Werkzeug   */
+  function stand(werkzeug, build) {
+    var roh = lese(LS_KEY);
+    if (!roh) return Promise.resolve({ status: 'schaufenster', grund: 'keine' });
+    return pruefeText(roh).then(function (p) {
+      var basis = {
+        name: p.n || '', email: p.e || '', nummer: p.id || '',
+        modus: p.m || 'kauf', bis: p.b || null, werkzeuge: p.w,
+        geheim: (p.s && p.s[werkzeug]) || null
+      };
+      if (p.w.indexOf(werkzeug) < 0 && p.w.indexOf('*') < 0) {
+        return Object.assign(basis, { status: 'schaufenster', grund: 'nicht-enthalten' });
+      }
+      if (basis.modus === 'miete' && basis.bis && heute() > basis.bis) {
+        return Object.assign(basis, { status: 'nurlesen', grund: 'laufzeit' });
+      }
+      /* Kauf: das Datum begrenzt nur das Wartungsfenster.
+         Eine neuere Fassung läuft weiter, weist aber darauf hin. */
+      var hinweis = basis.modus === 'kauf' && basis.bis && build && build > basis.bis;
+      return Object.assign(basis, { status: 'frei', grund: hinweis ? 'wartung' : null });
+    }).catch(function (e) {
+      return { status: 'schaufenster', grund: e.message || 'ungueltig' };
+    });
+  }
+
+  function speichern(text) {
+    return pruefeText(text).then(function (p) {
+      if (!schreibe(LS_KEY, saeubern(text))) throw new Error('speicher');
+      return p;
+    });
+  }
+  function loeschen() { schreibe(LS_KEY, null); }
+  function roh() { return lese(LS_KEY); }
+
+  /* ---------- Freischalten über die Adresse ----------
+     …/index.html#lizenz=WB1.…  schaltet beim Öffnen frei. Am Telefon ist das
+     der einzige Weg, der ohne Abtippen und ohne Dateiauswahl auskommt: Link
+     antippen, fertig. Der Schlüssel verschwindet danach aus der Adresszeile,
+     damit er nicht im Verlauf oder in einem Lesezeichen stehenbleibt. */
+  function ausUrl() {
+    try {
+      var m = (String(location.hash || '') + '&' + String(location.search || ''))
+              .match(/[#?&]lizenz=([^&#]+)/i);
+      return m ? decodeURIComponent(m[1]) : null;
+    } catch (e) { return null; }
+  }
+  function urlSaeubern() {
+    try {
+      var such = String(location.search || '').replace(/([?&])lizenz=[^&]*&?/i, '$1').replace(/[?&]$/, '');
+      var hash = String(location.hash || '').replace(/([#&])lizenz=[^&]*&?/i, '$1').replace(/[#&]$/, '');
+      history.replaceState(null, '', location.pathname + such + hash);
+    } catch (e) {}
+  }
+  /* Nimmt einen Schlüssel aus der Adresse an, falls einer dasteht.
+     Gibt die Nutzdaten zurück, null wenn keiner dastand – und wirft nie. */
+  function ausUrlUebernehmen() {
+    var t = ausUrl();
+    if (!t) return Promise.resolve(null);
+    return speichern(t).then(function (p) { urlSaeubern(); return p; },
+                             function ()  { urlSaeubern(); return null; });
+  }
+
+  var GRUENDE = {
+    keine: 'Für dieses Werkzeug liegt keine Lizenz vor.',
+    'nicht-enthalten': 'Die hinterlegte Lizenz deckt dieses Werkzeug nicht ab.',
+    signatur: 'Der Schlüssel ist beschädigt oder stammt nicht von der Lizenzstelle.',
+    format: 'Das sieht nicht nach einem Lizenzschlüssel aus – er beginnt mit „WB1.".',
+    pruefschluessel: 'Das ist der Prüfschlüssel der Lizenzstelle. Gebraucht wird hier der '
+      + 'Lizenzschlüssel aus „Lizenz ausstellen" – er beginnt mit „WB1.".',
+    leer: 'Kein Schlüssel eingegeben.',
+    laufzeit: 'Die Laufzeit ist abgelaufen – Speichern ist gesperrt, Lesen und Ausgabe bleiben möglich.',
+    wartung: 'Diese Fassung ist neuer als dein Wartungsfenster.',
+    'kein-pubkey': 'In dieser Fassung ist noch kein Prüfschlüssel hinterlegt.',
+    speicher: 'Der Browser lässt kein Speichern zu (privates Fenster?).'
+  };
+  function grundText(g) { return GRUENDE[g] || 'Die Lizenz konnte nicht geprüft werden.'; }
+
+  /* ---------- Oberfläche ---------- */
+
+  var CSS = '\
+.wbl-band{position:sticky;top:0;z-index:9000;display:flex;gap:12px;align-items:center;\
+ padding:10px 16px;font:500 14px/1.4 system-ui,sans-serif;\
+ background:#2A1E06;color:#F7CF83;border-bottom:1px solid rgba(242,179,61,.35)}\
+.wbl-band.wbl-ok{background:transparent;color:#6B7683;border:0;font-size:12px;\
+ justify-content:center;position:static;padding:14px 16px}\
+.wbl-band.wbl-still{position:static;border-radius:14px;border:1px solid rgba(242,179,61,.35);margin:18px 0 0}\
+.wbl-band b{color:#F2B33D;font-weight:700}\
+.wbl-band .wbl-sp{flex:1}\
+.wbl-btn{border:1px solid currentColor;background:transparent;color:inherit;\
+ border-radius:999px;padding:6px 14px;font:600 13px system-ui,sans-serif;cursor:pointer}\
+.wbl-btn:hover{background:rgba(255,255,255,.08)}\
+.wbl-btn.wbl-pri{background:#F2B33D;border-color:#F2B33D;color:#1A1204}\
+.wbl-dlg{border:0;border-radius:16px;padding:0;max-width:560px;width:calc(100% - 32px);\
+ max-height:86svh;overflow:hidden;background:#0C1118;color:#EDF0F3;\
+ box-shadow:0 24px 60px rgba(0,0,0,.6)}\
+.wbl-dlg::backdrop{background:rgba(4,7,11,.72)}\
+.wbl-in{display:flex;flex-direction:column;max-height:86svh;padding:0}\
+.wbl-scroll{padding:24px 24px 0;overflow:auto;min-height:0;-webkit-overflow-scrolling:touch}\
+.wbl-in h2{margin:0 0 4px;font:700 20px system-ui,sans-serif}\
+.wbl-in p{margin:0 0 16px;color:#9BA6B2;font:400 14px/1.55 system-ui,sans-serif}\
+.wbl-in ul{margin:0 0 18px;padding-left:18px;color:#9BA6B2;font:400 14px/1.7 system-ui,sans-serif}\
+.wbl-was{margin:18px 0 6px!important;font:600 12px/1.4 system-ui,sans-serif!important;\
+ letter-spacing:.1em;text-transform:uppercase;color:#6B7683!important}\
+.wbl-in textarea{width:100%;box-sizing:border-box;min-height:96px;resize:vertical;\
+ background:#070B11;color:#EDF0F3;border:1px solid rgba(255,255,255,.14);border-radius:10px;\
+ padding:12px;font:400 16px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all}\
+.wbl-in textarea:focus{outline:2px solid #F2B33D;outline-offset:-1px}\
+.wbl-msg{margin:10px 0 0;font:500 13px system-ui,sans-serif;min-height:18px}\
+.wbl-msg.wbl-bad{color:#FF8A7A}.wbl-msg.wbl-good{color:#63D9C4}\
+.wbl-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;flex:none;\
+ padding:16px 24px calc(16px + env(safe-area-inset-bottom));\
+ border-top:1px solid rgba(255,255,255,.10)}\
+.wbl-row .wbl-sp{flex:1}\
+.wbl-row .wbl-txt{border:0;background:none;color:#6B7683;text-decoration:underline;\
+ font:500 13px system-ui,sans-serif;cursor:pointer;padding:6px 2px}\
+.wbl-row .wbl-txt:hover{color:#FF8A7A}\
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .wbl-dlg{background:#fff;color:#11161C}\
+ :root:not([data-theme="dark"]) .wbl-in textarea{background:#F5F7F9;color:#11161C;border-color:rgba(0,0,0,.16)}}\
+:root[data-theme="light"] .wbl-dlg{background:#fff;color:#11161C}\
+:root[data-theme="light"] .wbl-in textarea{background:#F5F7F9;color:#11161C;border-color:rgba(0,0,0,.16)}\
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .wbl-row{border-color:rgba(0,0,0,.12)}}\
+:root[data-theme="light"] .wbl-row{border-color:rgba(0,0,0,.12)}';
+
+  function styleEinmal() {
+    if (document.getElementById('wbl-css')) return;
+    var s = document.createElement('style');
+    s.id = 'wbl-css'; s.textContent = CSS;
+    document.head.appendChild(s);
+  }
+
+  /* Dialog zum Freischalten. opt: {titel, werkzeug, merkmale:[…]} */
+  function dialog(opt, beiErfolg) {
+    styleEinmal();
+    var d = document.getElementById('wbl-dlg');
+    if (d) d.remove();
+    d = document.createElement('dialog');
+    d.id = 'wbl-dlg'; d.className = 'wbl-dlg';
+    d.innerHTML =
+      '<div class="wbl-in"><div class="wbl-scroll">' +
+        '<h2>' + esc(opt.titel || 'Werkzeug freischalten') + '</h2>' +
+        '<p>Schlüssel einfügen oder die Lizenzdatei wählen. Der Schlüssel gilt für ' +
+        'alle Werkzeuge, die er nennt – in diesem Browser.</p>' +
+        '<textarea id="wbl-ein" spellcheck="false" autocomplete="off" ' +
+        'autocapitalize="off" autocorrect="off" ' +
+        'placeholder="WB1.…"></textarea>' +
+        '<p class="wbl-msg" id="wbl-msg"></p>' +
+        /* Die Merkmale stehen unter dem Feld: wer den Dialog öffnet, will
+           meist einfügen, nicht lesen. */
+        (opt.merkmale && opt.merkmale.length
+          ? '<p class="wbl-was">Was dieses Werkzeug kann</p><ul>'
+            + opt.merkmale.map(function (m) { return '<li>' + esc(m) + '</li>'; }).join('')
+            + '</ul>'
+          : '') +
+      '</div>' +
+        '<div class="wbl-row">' +
+          '<label class="wbl-btn">Datei wählen' +
+            '<input type="file" id="wbl-datei" accept=".wblic,.txt,.json" hidden></label>' +
+          '<button type="button" class="wbl-txt" id="wbl-weg">Lizenz entfernen</button>' +
+          '<span class="wbl-sp"></span>' +
+          '<button type="button" class="wbl-btn" id="wbl-zu">Schließen</button>' +
+          '<button type="button" class="wbl-btn wbl-pri" id="wbl-ok">Freischalten</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(d);
+
+    var feld = d.querySelector('#wbl-ein'), msg = d.querySelector('#wbl-msg');
+    function sag(t, gut) { msg.textContent = t; msg.className = 'wbl-msg ' + (gut ? 'wbl-good' : 'wbl-bad'); }
+
+    d.querySelector('#wbl-datei').addEventListener('change', function (e) {
+      var f = e.target.files && e.target.files[0];
+      if (!f) return;
+      f.text().then(function (t) {
+        var m = t.match(/WB1\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+/);
+        feld.value = m ? m[0] : t.trim();
+        sag('Datei gelesen – jetzt freischalten.', true);
+      });
+    });
+    d.querySelector('#wbl-zu').addEventListener('click', function () { d.close(); });
+    d.querySelector('#wbl-weg').addEventListener('click', function () {
+      loeschen(); sag('Lizenz entfernt.', true);
+      setTimeout(function () { location.reload(); }, 600);
+    });
+    d.querySelector('#wbl-ok').addEventListener('click', function () {
+      speichern(feld.value).then(function (p) {
+        sag('Freigeschaltet für ' + (p.n || 'dich') + '.', true);
+        if (beiErfolg) beiErfolg(p);
+        setTimeout(function () { location.reload(); }, 700);
+      }).catch(function (e) { sag(grundText(e.message)); });
+    });
+
+    var vorhanden = roh();
+    if (vorhanden) feld.value = vorhanden;
+    d.showModal();
+    feld.focus();
+    return d;
+  }
+
+  /* Band oben bzw. Zeile unten, je nach Lage.
+     opt: {werkzeug, titel, build, merkmale:[…], ziel:Element} */
+  function leiste(opt) {
+    return stand(opt.werkzeug, opt.build).then(function (s) {
+      styleEinmal();
+      var alt = document.getElementById('wbl-band');
+      if (alt) alt.remove();
+      var el = document.createElement('div');
+      el.id = 'wbl-band'; el.className = 'wbl-band';
+
+      var frei = s.status === 'frei' && s.grund !== 'wartung';
+      var ziel = (frei ? (opt.zielOk || document.body) : opt.ziel) || document.body;
+      if (opt.haftend === false && !frei) el.className += ' wbl-still';
+
+      if (frei) {
+        el.className += ' wbl-ok';
+        el.innerHTML = 'Lizenziert für ' + esc(s.name) +
+          (s.nummer ? ' · ' + esc(s.nummer) : '') +
+          (s.modus === 'miete' && s.bis ? ' · Laufzeit bis ' + tagDe(s.bis) : '');
+        ziel.appendChild(el);
+      } else {
+        var txt = (opt.text && opt.text(s)) ||
+          (s.status === 'schaufenster'
+            ? '<b>Schaufenster</b> · Speichern, Datei-Verknüpfung und Ausgabe sind gesperrt.'
+          : s.status === 'nurlesen'
+            ? '<b>Laufzeit abgelaufen</b> · Lesen und Ausgabe bleiben, Speichern ist gesperrt.'
+            : '<b>Wartungsfenster abgelaufen</b> · Diese Fassung ist neuer als deine Lizenz.');
+        el.innerHTML = txt + '<span class="wbl-sp"></span>' +
+          '<button type="button" class="wbl-btn wbl-pri" id="wbl-auf">' +
+          (s.status === 'frei' ? 'Verlängern' : 'Freischalten') + '</button>';
+        ziel.insertBefore(el, ziel.firstChild);
+        el.querySelector('#wbl-auf').addEventListener('click', function () {
+          dialog({ titel: opt.titel, werkzeug: opt.werkzeug, merkmale: opt.merkmale });
+        });
+      }
+      return s;
+    });
+  }
+
+  /* Andere offene Werkzeuge ziehen nach, sobald hier freigeschaltet wurde. */
+  global.addEventListener('storage', function (e) {
+    if (e.key === LS_KEY) location.reload();
+  });
+
+  global.WBLizenz = {
+    setzePruefschluessel: function (b64) { PUB_B64 = b64; pubCache = null; },
+    pruefbereit: pruefbereit,
+    saeubern: saeubern,
+    ausUrl: ausUrl,
+    ausUrlUebernehmen: ausUrlUebernehmen,
+    stand: stand,
+    pruefeText: pruefeText,
+    speichern: speichern,
+    loeschen: loeschen,
+    roh: roh,
+    dialog: dialog,
+    leiste: leiste,
+    grundText: grundText,
+    /* true, wenn Schreiben gesperrt ist – ein Aufruf für alle Speicherwege */
+    gesperrt: function (s) { return !s || s.status !== 'frei'; },
+    /* true, wenn gar nichts Echtes gezeigt werden darf */
+    schaufenster: function (s) { return !s || s.status === 'schaufenster'; }
+  };
+})(window);
+</script>
+<script>
+/* ============================================================
+   WBTor — Lizenztor für ein einzelnes Werkzeug
+   ------------------------------------------------------------
+   Setzt die Lizenz durch, ohne dass im Werkzeug selbst etwas
+   umgebaut werden muss. Das Tor wird VOR dem Werkzeugskript
+   eingebunden und schließt sofort; geöffnet wird erst, wenn die
+   Lizenz geprüft ist.
+
+   Im Werkzeug ist genau eine Zeile zu ändern:
+       boot();          →     WBTor.start(boot);
+
+   Drei Lagen (aus lizenz.js):
+     frei         – Tor offen, nichts wird angefasst
+     nurlesen     – eigener Bestand sichtbar, Ausgabe erlaubt,
+                    kein Schreiben
+     schaufenster – hat das Gerät schon einen eigenen Bestand,
+                    verhält es sich wie nurlesen (Daten sind nie
+                    Geisel). Sonst Beispieldaten, ohne Ausgabe.
+
+   Gesperrt wird auf vier Ebenen, damit nichts durchrutscht:
+     1. Bedienung  – Knöpfe und Formulare, die schreiben
+     2. Ablage     – localStorage-Schlüssel des Werkzeugs
+     3. Datei      – Dateiauswahl und Schreibzugriff
+     4. Ausgabe    – Druck und Export, nur im Beispielbetrieb
+   ============================================================ */
+(function (global) {
+  'use strict';
+
+  var cfg = null;          // Konfiguration des Werkzeugs
+  var lage = null;         // Lage aus WBLizenz.stand()
+  var zu = true;           // Tor geschlossen, bis geprüft
+  var beispiel = false;    // Beispieldaten statt eigenem Bestand
+  var offenOhnePruefung = false;  // Fassung ohne Prüfschlüssel
+  var eigen = new Set();   // localStorage-Schlüssel des Werkzeugs
+  var demo = {};           // Schlüssel → JSON-Text
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  /* ── 2. Ablage ─────────────────────────────────────────── */
+  var P = global.Storage && Storage.prototype;
+  if (P) {
+    var oGet = P.getItem, oSet = P.setItem, oDel = P.removeItem;
+    P.getItem = function (k) {
+      if (this === localStorage && beispiel && Object.prototype.hasOwnProperty.call(demo, k)) return demo[k];
+      return oGet.call(this, k);
+    };
+    P.setItem = function (k, v) {
+      if (this === localStorage && zu && eigen.has(k)) return;
+      return oSet.call(this, k, v);
+    };
+    P.removeItem = function (k) {
+      if (this === localStorage && zu && eigen.has(k)) return;
+      return oDel.call(this, k);
+    };
+  }
+
+  /* ── 3. Datei ──────────────────────────────────────────── */
+  var oOpen = global.showOpenFilePicker, oSave = global.showSaveFilePicker;
+  if (oOpen) global.showOpenFilePicker = function () {
+    if (zu) return sperrfehler();
+    return oOpen.apply(global, arguments);
+  };
+  if (oSave) global.showSaveFilePicker = function () {
+    if (zu) return sperrfehler();
+    return oSave.apply(global, arguments);
+  };
+  if (global.FileSystemFileHandle && FileSystemFileHandle.prototype.createWritable) {
+    var oW = FileSystemFileHandle.prototype.createWritable;
+    FileSystemFileHandle.prototype.createWritable = function () {
+      if (zu) return sperrfehler();
+      return oW.apply(this, arguments);
+    };
+  }
+  function sperrfehler() {
+    var e = new Error('Ohne Lizenz wird nicht in Dateien geschrieben.');
+    e.name = 'AbortError';           // die Werkzeuge behandeln das still
+    dialogAuf();
+    return Promise.reject(e);
+  }
+
+  /* ── 4. Ausgabe ────────────────────────────────────────── */
+  var oPrint = global.print;
+  global.print = function () {
+    if (beispiel) { dialogAuf(); return; }
+    return oPrint.apply(global, arguments);
+  };
+
+  /* ── 1. Bedienung ──────────────────────────────────────── */
+  function trifft(el, sel) {
+    if (!sel || !el || !el.closest) return false;
+    try { return !!el.closest(sel); } catch (e) { return false; }
+  }
+  function abfangen(ev) {
+    if (!cfg) return;
+    var t = ev.target;
+    var schreibt = zu && trifft(t, cfg.schreiben);
+    var gibtAus  = beispiel && trifft(t, cfg.ausgabe);
+    if (!schreibt && !gibtAus) return;
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    dialogAuf();
+  }
+  document.addEventListener('click', abfangen, true);
+  document.addEventListener('submit', abfangen, true);
+
+  function dialogAuf() {
+    if (!cfg || !global.WBLizenz) return;
+    WBLizenz.dialog({ titel: cfg.titel, werkzeug: cfg.werkzeug, merkmale: cfg.merkmale });
+  }
+
+  /* ── Band und Fußknopf ─────────────────────────────────── */
+  function anker() {
+    var a = document.createElement('div');
+    var nach = cfg.nach && document.querySelector(cfg.nach);
+    if (nach && nach.insertAdjacentElement) nach.insertAdjacentElement('afterend', a);
+    else {
+      var m = document.querySelector(cfg.ziel || 'main') || document.body;
+      m.insertBefore(a, m.firstChild);
+    }
+    return a;
+  }
+  function fussknopf() {
+    if (!cfg.fuss) return;
+    var f = document.querySelector(cfg.fuss);
+    if (!f) return;
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = cfg.fussKlasse || 'pill sm';
+    b.textContent = lage && lage.status === 'frei' ? 'Lizenz' : 'Freischalten';
+    b.addEventListener('click', dialogAuf);
+    f.insertBefore(b, f.firstChild);
+  }
+
+  /* ── Tor ───────────────────────────────────────────────── */
+  function WBTor(k) {
+    cfg = Object.assign({
+      werkzeug: '', build: '', titel: 'Werkzeug freischalten', merkmale: [],
+      eigen: [], demo: {}, schreiben: '', ausgabe: '', nach: '', ziel: 'main', fuss: ''
+    }, k || {});
+    eigen = new Set(cfg.eigen);
+    /* Beispieldaten einmal in Text verwandeln – getItem gibt Text zurück */
+    demo = {};
+    Object.keys(cfg.demo).forEach(function (s) {
+      demo[s] = typeof cfg.demo[s] === 'string' ? cfg.demo[s] : JSON.stringify(cfg.demo[s]);
+    });
+  }
+
+  /* Liegt auf diesem Gerät schon ein eigener Bestand? Dann wird er auch
+     ohne Lizenz gezeigt – lesen und sichern bleibt immer möglich. */
+  function bestandDa() {
+    for (var i = 0; i < cfg.eigen.length; i++) {
+      try {
+        var v = localStorage.getItem(cfg.eigen[i]);
+        if (v && v.length > 40) return true;
+      } catch (e) {}
+    }
+    return false;
+  }
+
+  WBTor.start = function (starten) {
+    if (!cfg) { starten(); return; }
+    var hat = bestandDa();
+    var weiter = function (s) {
+      lage = s || { status: 'schaufenster', grund: 'keine' };
+      /* Fassung ohne hinterlegten Prüfschlüssel: das Tor kann nichts prüfen und
+         bleibt offen, weist aber unübersehbar darauf hin. So sperrt sich niemand
+         aus – und eine ungeschützte Fassung geht nicht unbemerkt ins Netz. */
+      offenOhnePruefung = lage.grund === 'kein-pubkey' ||
+        (global.WBLizenz && WBLizenz.pruefbereit && !WBLizenz.pruefbereit());
+      zu = lage.status !== 'frei' && !offenOhnePruefung;
+      beispiel = lage.status === 'schaufenster' && !hat && !offenOhnePruefung;
+      try {
+        WBLizenz.leiste({
+          werkzeug: cfg.werkzeug, build: cfg.build, titel: cfg.titel,
+          merkmale: cfg.merkmale, ziel: anker(), haftend: false,
+          /* Das Band sagt genau das, was in dieser Lage gilt. */
+          text: function (s) {
+            if (offenOhnePruefung) {
+              return '<b>Kein Prüfschlüssel hinterlegt</b> · Diese Fassung ist nicht ' +
+                     'lizenzgeschützt. In lizenz.js den Prüfschlüssel der Lizenzstelle eintragen.';
+            }
+            if (s.status === 'schaufenster') {
+              return beispiel
+                ? '<b>Schaufenster</b> · Beispieldaten. Speichern, Datei und Ausgabe sind gesperrt.'
+                : '<b>Ohne Lizenz</b> · Dein Bestand bleibt lesbar und sicherbar, Speichern ist gesperrt.';
+            }
+            return null;
+          }
+        });
+      } catch (e) {}
+      try { fussknopf(); } catch (e) {}
+      starten();
+    };
+    if (!global.WBLizenz) { weiter(null); return; }
+    var pruefen = function () {
+      WBLizenz.stand(cfg.werkzeug, cfg.build).then(weiter, function () { weiter(null); });
+    };
+    /* Steht ein Schlüssel in der Adresse, wird er zuerst übernommen. */
+    if (WBLizenz.ausUrlUebernehmen && WBLizenz.ausUrl && WBLizenz.ausUrl()) {
+      hat = true;                       // Freischaltung per Link: nie Beispieldaten
+      WBLizenz.ausUrlUebernehmen().then(pruefen, pruefen);
+    } else pruefen();
+  };
+
+  WBTor.lage = function () { return lage; };
+  WBTor.zu = function () { return zu; };
+  WBTor.beispiel = function () { return beispiel; };
+  WBTor.dialog = dialogAuf;
+
+  global.WBTor = WBTor;
+})(window);
+</script>
+<script>
+/* Lizenztor · Auftragsbuch freischalten */
+WBTor({
+  "werkzeug": "auftragsbuch",
+  "build": "2026-09-19",
+  "titel": "Auftragsbuch freischalten",
+  "merkmale": [
+    "Auftraggeber und Aufträge an einer Stelle",
+    "Stundensätze, Budgets und Zahlungsziele",
+    "Führt die Stammdaten für alle übrigen Werkzeuge",
+    "Gebuchte Stunden und Notizen je Auftrag"
+  ],
+  "nach": "main .head",
+  "fuss": "footer.site .f-r",
+  "eigen": [
+    "wb-auftragsbuch-data"
+  ],
+  "schreiben": "#newClient,#newOrder,#emptyNew,#editClient,#editClient2,#toggleActive,#delClient,#delOrder,#importBtn,#fsOpen,#fsNew,#fsImport,#fsDetach,#formClient,#formOrder,[data-edit]",
+  "ausgabe": "#exportBtn,#fsExport",
+  "demo": {
+    "wb-auftragsbuch-data": {
+      "app": "werkbank-auftragsbuch",
+      "version": 1,
+      "updated": "2026-09-15T09:00:00.000Z",
+      "auftraggeber": [
+        {
+          "id": "c1",
+          "name": "Muster Antriebstechnik GmbH",
+          "ansprechpartner": "A. Beispiel",
+          "email": "kontakt@example.invalid",
+          "telefon": "",
+          "adresse": "Musterstraße 14\n71229 Beispielstadt",
+          "stundensatz": 98,
+          "zahlungsziel": 14,
+          "steuersatz": 19,
+          "notizen": "",
+          "aktiv": true
+        },
+        {
+          "id": "c2",
+          "name": "Beispiel Automotive AG",
+          "ansprechpartner": "R. Muster",
+          "email": "einkauf@example.invalid",
+          "telefon": "",
+          "adresse": "Beispielallee 3\n70565 Musterhausen",
+          "stundensatz": 110,
+          "zahlungsziel": 30,
+          "steuersatz": 19,
+          "notizen": "",
+          "aktiv": true
+        }
+      ],
+      "auftraege": [
+        {
+          "id": "a1",
+          "auftraggeberId": "c1",
+          "name": "Diagnosekonzept OBD",
+          "projektnummer": "P-2481",
+          "beschreibung": "Konzept und Abstimmung der Diagnosefunktionen",
+          "stundensatz": 98,
+          "status": "aktiv",
+          "budgetStunden": 120,
+          "budgetEuro": 11760,
+          "start": "2026-07-01",
+          "ende": "2026-12-31"
+        },
+        {
+          "id": "a2",
+          "auftraggeberId": "c1",
+          "name": "Abgasnachbehandlung — Reviewbegleitung",
+          "projektnummer": "P-2399",
+          "beschreibung": "",
+          "stundensatz": 98,
+          "status": "abgeschlossen",
+          "budgetStunden": 40,
+          "budgetEuro": 3920,
+          "start": "2026-05-01",
+          "ende": "2026-07-31"
+        },
+        {
+          "id": "a3",
+          "auftraggeberId": "c2",
+          "name": "Lastenheft Steuergerät",
+          "projektnummer": "P-5120",
+          "beschreibung": "",
+          "stundensatz": 110,
+          "status": "aktiv",
+          "budgetStunden": 80,
+          "budgetEuro": 8800,
+          "start": "2026-06-15",
+          "ende": "2026-11-30"
+        }
+      ]
+    }
+  }
+});
+</script>
+
 <script>
 (() => {
 'use strict';
@@ -1439,9 +2160,11 @@ addEventListener('visibilitychange', () => {
 });
 
 zeitenLesen(); notizenLesen();
-boot().then(() => {
-  render();
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
+WBTor.start(function(){
+  boot().then(() => {
+    render();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
+  });
 });
 })();
 </script>
