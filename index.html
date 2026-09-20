@@ -483,6 +483,32 @@ html[data-theme="light"]{
   background:var(--ok,var(--free));box-shadow:0 0 0 3px color-mix(in srgb,var(--free) 22%,transparent)}
 .lrow.inactive .vc-state{background:var(--text-3);box-shadow:none}
 @media (max-width:620px){ .lrow .l-satz,.lrow .l-zahl{display:none} }
+
+/* Die Bilanz steht unter dem Balken und ist abgesetzt: sie sagt etwas
+   über die Vergangenheit, alles darüber über den laufenden Auftrag. */
+.o-bilanz{margin-top:14px;padding:13px 15px;border-radius:13px;
+  border:1px solid var(--line);background:var(--panel2,var(--glass))}
+.o-bilanz .bz-kopf{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--text-3);margin-bottom:9px}
+.o-bilanz .bz-zeile{display:flex;flex-wrap:wrap;gap:6px 26px}
+.o-bilanz .bz-zeile span{display:flex;flex-direction:column;gap:2px;font-family:var(--mono);
+  font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--text-3)}
+.o-bilanz .bz-zeile b{font-family:var(--display);font-size:16px;letter-spacing:-.01em;
+  text-transform:none;color:var(--text);font-variation-settings:'wdth' 108}
+.o-bilanz .bz-zeile i{font-style:normal;font-size:10.5px;letter-spacing:.08em;
+  text-transform:none;color:var(--text-3)}
+.o-bilanz .bz-satz{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px;
+  margin-top:11px;padding-top:11px;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:11.5px;color:var(--text-3)}
+.o-bilanz .bz-satz b{font-family:var(--display);font-size:19px;letter-spacing:-.02em;
+  color:var(--text);font-variation-settings:'wdth' 110}
+.o-bilanz .bz-note{margin-left:auto;padding:2px 9px;border-radius:100px;
+  border:1px solid currentColor;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase}
+.o-bilanz.gut .bz-note{color:var(--free,#3FB98F)}
+.o-bilanz.knapp .bz-note{color:var(--amber)}
+.o-bilanz.schwach .bz-note{color:var(--danger,#E2725B)}
+.o-bilanz .bz-rest{margin-top:8px;font-family:var(--mono);font-size:11px;
+  color:var(--text-3);line-height:1.5}
 </style>
 </head>
 <body>
@@ -1541,6 +1567,40 @@ function notizenVon(name){
   const j = notizen && notizen.jeKategorie ? notizen.jeKategorie[name] : 0;
   return j || 0;
 }
+/* ═══════ Was wurde für diesen Auftrag abgerechnet? ═══════
+   Gelesen wird die Lesekopie des Rechnungsbuchs. Gezählt wird netto —
+   die Steuer ist durchlaufender Posten und sagt über den Auftrag nichts.
+   Stornierte Rechnungen und Entwürfe zählen nicht: das eine ist
+   zurückgenommen, das andere noch nicht gestellt. */
+const WB_RECH_LS = 'wb-rechnungsbuch-data';
+let rechnungen = null;
+function rechnungenLesen(){ rechnungen = WB.lesen(WB_RECH_LS); }
+const centR = v => Math.round((Number(v) || 0) * 100) / 100;
+function rechnungVonAuftrag(o){
+  if (!rechnungen || !Array.isArray(rechnungen.rechnungen)) return null;
+  let netto = 0, brutto = 0, offen = 0, n = 0;
+  rechnungen.rechnungen.forEach(r => {
+    if (!r || r.aufId !== o.id) return;
+    if (!r.festgeschrieben || r.storniert || r.stornoVon) return;
+    const pos = Array.isArray(r.positionen) ? r.positionen : [];
+    let net = 0; const grp = {};
+    pos.forEach(p => {
+      const zeile = centR((+p.menge || 0) * (+p.preis || 0));
+      net = centR(net + zeile);
+      const s = r.steuerfall === 'regel' ? (+p.satz || 0) : 0;
+      grp[s] = centR((grp[s] || 0) + zeile);
+    });
+    let st = 0;
+    Object.keys(grp).forEach(s => { st = centR(st + centR(grp[s] * parseFloat(s) / 100)); });
+    const br = centR(net + st);
+    const bez = (Array.isArray(r.zahlungen) ? r.zahlungen : [])
+                  .reduce((s, z) => centR(s + (+z.betrag || 0)), 0);
+    netto = centR(netto + net); brutto = centR(brutto + br);
+    offen = centR(offen + Math.max(0, centR(br - bez)));
+    n++;
+  });
+  return n ? { netto, brutto, offen, n } : null;
+}
 function zeitVonAuftrag(o){
   const z = zeiten && zeiten.jeAuftrag ? zeiten.jeAuftrag[o.id] : null;
   return z && z.sec ? z : null;
@@ -2005,7 +2065,9 @@ function actionHTML(icon, label, href, ok){
 /* Gebuchte Zeit — nur sichtbar, wenn die Stempeluhr etwas gemeldet hat. */
 function gebuchtHTML(o){
   const z = zeitVonAuftrag(o);
-  if (!z) return '';
+  /* Steht die Bilanz darunter, trägt sie die Stunden schon – zweimal
+     dieselbe Zahl nebeneinander liest niemand. */
+  if (!z || bilanzDa(o)) return '';
   return '<span>Gebucht<b class="o-book">' + dec.format(z.sec/3600) + ' h</b></span>'
        + '<span>Erarbeitet<b class="o-book">' + eur.format(z.eur) + '</b></span>';
 }
@@ -2017,6 +2079,51 @@ function balkenHTML(o){
     + '<i style="width:' + Math.min(100, anteil).toFixed(1) + '%"></i>'
     + '<em>' + dec.format(ist) + ' von ' + dec.format(o.budgetStunden) + ' h'
     + (ueber ? ' · über Budget' : ' · ' + Math.round(anteil) + ' %') + '</em></div>';
+}
+
+/* ═══════ Bilanz: hat sich der Auftrag gelohnt? ═══════
+   Drei Zahlen und ein Urteil. Geplant kommt aus dem Budget, Gearbeitet
+   aus der Stempeluhr, Abgerechnet aus dem Rechnungsbuch. Der effektive
+   Satz ist Abgerechnet ÷ gearbeitete Stunden — die einzige Zahl, die
+   beim nächsten Angebot hilft.
+
+   Gezeigt wird der Block nur, wenn Stunden UND Rechnungen vorliegen.
+   Ohne beides wäre er eine Behauptung: unabgerechnete Stunden ziehen
+   den Satz nach unten, ohne dass der Auftrag schlecht gelaufen wäre. */
+function bilanzDa(o){
+  const z = zeitVonAuftrag(o), r = rechnungVonAuftrag(o);
+  return !!(z && r && z.sec / 3600 >= 0.05);
+}
+function bilanzHTML(o){
+  if (!bilanzDa(o)) return '';
+  const z = zeitVonAuftrag(o);
+  const r = rechnungVonAuftrag(o);
+  const std = z.sec / 3600;
+  const satz = rateOf(o);
+  const eff = r.netto / std;
+  const restSec = z.offenSec || 0;
+  const teil = restSec > 60;                    /* noch Stunden unterwegs */
+  /* Gemessen wird gegen den vereinbarten Satz. Ohne Satz gibt es kein
+     Urteil – dann stehen die Zahlen für sich. */
+  const abw = satz && !teil ? (eff - satz) / satz : null;
+  /* Solange Stunden unabgerechnet sind, wäre jedes Urteil unfair: sie
+     ziehen den Satz nach unten, ohne dass etwas schiefgelaufen wäre.
+     Die Zahl steht trotzdem da – nur ohne Note. */
+  const urteil = abw == null ? '' : (abw >= -0.02 ? 'gut' : (abw >= -0.15 ? 'knapp' : 'schwach'));
+  return '<div class="o-bilanz' + (urteil ? ' ' + urteil : '') + (teil ? ' teil' : '') + '">'
+    + '<div class="bz-kopf">Hat sich der Auftrag gelohnt?</div>'
+    + '<div class="bz-zeile">'
+    +   '<span>Geplant<b>' + (o.budgetEuro ? eur.format(o.budgetEuro) : '–') + '</b></span>'
+    +   '<span>Gearbeitet<b>' + dec.format(std) + ' h</b></span>'
+    +   '<span>Abgerechnet<b>' + eur.format(r.netto) + '</b>'
+    +     (r.offen > 0.005 ? '<i>' + eur.format(r.offen) + ' brutto noch offen</i>' : '') + '</span>'
+    + '</div>'
+    + '<div class="bz-satz"><b>' + eur2.format(eff) + ' / h</b> tatsächlich'
+    +   (satz ? '<span class="bz-soll">vereinbart ' + eur2.format(satz) + ' / h</span>' : '')
+    +   (urteil ? '<span class="bz-note">' + urteil + '</span>' : '') + '</div>'
+    + (teil ? '<div class="bz-rest">' + dec.format(restSec/3600)
+            + ' h sind noch nicht abgerechnet – der Satz steigt, wenn sie gestellt sind.</div>' : '')
+    + '</div>';
 }
 
 function orderHTML(o){
@@ -2042,6 +2149,7 @@ function orderHTML(o){
     + gebuchtHTML(o)
     + '</div>'
     + balkenHTML(o)
+    + bilanzHTML(o)
     + (own ? '<div class="o-num" style="font-family:var(--mono);font-size:11px;color:var(--text-3)">* abweichend vom Satz des Auftraggebers</div>' : '')
     + '<div class="o-acts"><button class="pill sm" type="button" data-edit="' + esc(o.id) + '">Bearbeiten</button>'
     + '<button class="pill sm" type="button" data-dup="' + esc(o.id) + '">Duplizieren</button></div>'
@@ -2319,17 +2427,17 @@ function render(){ recompute(); renderAZ(); renderKPIs(); renderDeck(); renderDe
 /* Die Stempeluhr meldet jede Buchung; das Auftragsbuch zeichnet
    daraufhin neu. Und umgekehrt: wird hier gespeichert, zieht die
    Stempeluhr nach. Beide laufen aber auch allein weiter. */
-WB.horchen('zeiten', () => { zeitenLesen(); render(); });
+WB.horchen('zeiten', () => { zeitenLesen(); rechnungenLesen(); render(); });
 WB.horchen('uhr',    () => { zeitenLesen(); render(); });
 WB.horchen('noteos', () => { notizenLesen(); render(); });
 addEventListener('visibilitychange', () => {
   if (document.hidden) return;
   const vorher = JSON.stringify(zeiten && zeiten.stand);
-  zeitenLesen();
+  zeitenLesen(); rechnungenLesen();
   if (JSON.stringify(zeiten && zeiten.stand) !== vorher) render();
 });
 
-zeitenLesen(); notizenLesen();
+zeitenLesen(); notizenLesen(); rechnungenLesen();
 WBTor.start(function(){
   boot().then(() => {
     render();
