@@ -455,6 +455,34 @@ html[data-theme="light"]{
   .blob{filter:blur(48px)}
   .bg i{filter:blur(38px)}
 }
+
+/* ═══ Liste statt Stapel ═══
+   Der Halbkreis ist schön, verbirgt aber bei wenigen Auftraggebern mehr
+   als er zeigt: zwei Karten übereinander und „1 / 2" darunter. Die Liste
+   ist jetzt die Voreinstellung, der Stapel bleibt als Ansicht daneben. */
+.stage.liste{height:auto;min-height:0;perspective:none;margin-top:14px}
+.stage.liste .deck{position:static;display:flex;flex-direction:column;gap:8px;
+  height:auto;transform:none}
+.lrow{display:flex;align-items:center;gap:14px;width:100%;text-align:left;
+  padding:13px 16px;border:1px solid var(--glass-edge);border-radius:15px;
+  background:var(--card-face,var(--glass));box-shadow:var(--shadow);cursor:pointer;
+  transition:border-color var(--t-s),transform var(--t-s),box-shadow var(--t-s)}
+.lrow:hover{border-color:var(--line-hi);transform:translateY(-1px);box-shadow:var(--shadow-lg)}
+.lrow.inactive{opacity:.55}
+.lrow .mono-badge{flex:none}
+.lrow .l-main{flex:1;min-width:0}
+.lrow .l-name{margin:0;font-size:16px;font-weight:600;letter-spacing:-.01em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lrow .l-sub{font-size:13px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lrow .l-zahl{font-family:var(--mono);font-size:12.5px;color:var(--text-3);
+  white-space:nowrap;text-align:right;flex:none}
+.lrow .l-zahl b{color:var(--text);font-weight:600}
+.lrow .l-satz{font-family:var(--mono);font-size:12.5px;color:var(--text-2);
+  white-space:nowrap;flex:none;min-width:74px;text-align:right}
+.lrow .vc-state{width:8px;height:8px;border-radius:50%;flex:none;
+  background:var(--ok,var(--free));box-shadow:0 0 0 3px color-mix(in srgb,var(--free) 22%,transparent)}
+.lrow.inactive .vc-state{background:var(--text-3);box-shadow:none}
+@media (max-width:620px){ .lrow .l-satz,.lrow .l-zahl{display:none} }
 </style>
 </head>
 <body>
@@ -462,7 +490,7 @@ html[data-theme="light"]{
 
 <header class="nav">
   <div class="nav-in">
-    <a class="brand" href="https://maikunverricht.github.io/WerkbankUnverricht/"><span class="mark" aria-hidden="true"><svg viewBox="15 5 90 102"><path d="M26,16 V62 A34,34 0 0 0 94,62 V16" fill="none" stroke="currentColor" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/><circle cx="60" cy="64" r="18.5" fill="var(--amber,#F2B33D)"/></svg></span><span class="hide-sm">Werkbank&nbsp;</span><b>Auftragsbuch</b></a>
+    <a class="brand" title="Zum Cockpit" href="https://maikunverricht.github.io/Der-Werkzeugkasten/"><span class="mark" aria-hidden="true"><svg viewBox="15 5 90 102"><path d="M26,16 V62 A34,34 0 0 0 94,62 V16" fill="none" stroke="currentColor" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/><circle cx="60" cy="64" r="18.5" fill="var(--amber,#F2B33D)"/></svg></span><span class="hide-sm">Werkbank&nbsp;</span><b>Auftragsbuch</b></a>
     <div class="nav-r">
       <button class="filechip" id="fileChip" type="button" data-s="local" title="Datenablage">
         <span class="fdot" aria-hidden="true"></span><span id="fileName">lokal</span>
@@ -494,6 +522,7 @@ html[data-theme="light"]{
       <button type="button" data-f="aktiv" aria-pressed="false">Aktiv</button>
       <button type="button" data-f="inaktiv" aria-pressed="false">Inaktiv</button>
     </div>
+    <div class="seg" role="group" aria-label="Ansicht" id="ansichtSeg"><button type="button" data-a="liste" aria-pressed="true">Liste</button><button type="button" data-a="stapel" aria-pressed="false">Stapel</button></div>
     <button class="pill primary" id="newClient" type="button">+ Auftraggeber</button>
     <span class="count" id="count"></span>
   </section>
@@ -514,11 +543,7 @@ html[data-theme="light"]{
 
 <footer class="site">
   <span>© <span id="yr"></span> Maik Unverricht · Auftragsbuch</span>
-  <span class="f-r">
-    <button class="pill sm" id="exportBtn" type="button">Export</button>
-    <button class="pill sm" id="importBtn" type="button">Import</button>
-    <a href="https://maikunverricht.github.io/WerkbankUnverricht/">Werkbank ↗</a>
-  </span>
+  <span class="f-r"><button class="pill sm" id="srcBtn" type="button">Datenablage</button><a href="https://maikunverricht.github.io/WerkbankUnverricht/">Werkbank ↗</a></span>
 </footer>
 
 <input type="file" id="fileInput" accept=".json,application/json,text/json,text/plain" hidden>
@@ -1157,13 +1182,23 @@ html[data-theme="light"]{
   function fussknopf() {
     if (!cfg.fuss) return;
     var f = document.querySelector(cfg.fuss);
-    if (!f) return;
+    if (!f) {
+      /* Manche Werkzeuge rufen start() beim Parsen auf – dann steht die
+         Fußzeile noch nicht. Einmal nachfassen, sobald sie da ist. */
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', fussknopf, { once: true });
+      }
+      return;
+    }
     var b = document.createElement('button');
     b.type = 'button';
     b.className = cfg.fussKlasse || 'pill sm';
     b.textContent = lage && lage.status === 'frei' ? 'Lizenz' : 'Freischalten';
     b.addEventListener('click', dialogAuf);
-    f.insertBefore(b, f.firstChild);
+    /* Vor den letzten Eintrag – der ist in allen Werkzeugen der Verweis
+       nach draußen, und davor gehört der Lizenzknopf hin. */
+    var letzter = f.lastElementChild;
+    if (letzter) f.insertBefore(b, letzter); else f.appendChild(b);
   }
 
   /* ── Tor ───────────────────────────────────────────────── */
@@ -1680,9 +1715,9 @@ async function exportieren(){
     toast('Export nicht möglich: ' + (e && e.message ? e.message : e));
   }
 }
-$('#exportBtn').addEventListener('click', exportieren);
+($('#exportBtn') || { addEventListener(){} }).addEventListener('click', exportieren);
 $('#fsExport').addEventListener('click', exportieren);
-$('#importBtn').addEventListener('click', () => $('#fileInput').click());
+($('#importBtn') || { addEventListener(){} }).addEventListener('click', () => $('#fileInput').click());
 $('#fsImport').addEventListener('click', () => { $('#dlgFile').close(); $('#fileInput').click(); });
 $('#fileInput').addEventListener('change', async e => {
   const f = e.target.files && e.target.files[0]; if (!f) return;
@@ -1774,6 +1809,49 @@ function layout(){
   });
 }
 
+
+/* ═══ Ansicht: Liste oder Stapel ═══ */
+const ANSICHT_LS = 'wb-auftragsbuch-ansicht';
+let ansicht = (function(){ try { return localStorage.getItem(ANSICHT_LS) === 'stapel' ? 'stapel' : 'liste'; }
+                           catch(e){ return 'liste'; } })();
+function ansichtSetzen(a){
+  ansicht = a;
+  try { localStorage.setItem(ANSICHT_LS, a); } catch(e){}
+  document.querySelectorAll('#ansichtSeg button').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.a === a)));
+  const st = document.getElementById('stage');
+  if (st) st.classList.toggle('liste', a === 'liste');
+  const nav = document.querySelector('.stage-nav'), az = document.getElementById('az');
+  if (nav) nav.hidden = a === 'liste';
+  if (az)  az.hidden  = a === 'liste';
+  if (typeof view !== 'undefined' && Array.isArray(view)) renderDeck();
+}
+function listeHTML(c){
+  const o = ordersOf(c.id);
+  const open = o.filter(x => OPEN.has(x.status)).length;
+  const city = (c.adresse || '').split('\n').filter(Boolean).pop() || '';
+  return '<span class="mono-badge">' + esc(initials(c.name)) + '</span>'
+    + '<span class="l-main"><h3 class="l-name">' + esc(c.name) + '</h3>'
+    + '<span class="l-sub">' + esc(c.ansprechpartner || c.email || city || '—') + '</span></span>'
+    + '<span class="l-zahl"><b>' + o.length + '</b> ' + (o.length === 1 ? 'Auftrag' : 'Aufträge')
+      + ' · <b>' + open + '</b> offen</span>'
+    + '<span class="l-satz">' + (c.stundensatz != null ? eur.format(c.stundensatz) + '/h' : '') + '</span>'
+    + '<span class="vc-state" title="' + (c.aktiv ? 'aktiv' : 'inaktiv') + '"></span>';
+}
+function renderListe(){
+  deck.innerHTML = '';
+  cards = [];
+  view.forEach(c => {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'lrow' + (c.aktiv ? '' : ' inactive');
+    el.innerHTML = listeHTML(c);
+    el.addEventListener('click', () => clientDlg(c.id));
+    deck.appendChild(el);
+  });
+  const p = document.getElementById('pos'); if (p) p.textContent = view.length || '–';
+}
+
 function cardHTML(c){
   const o = ordersOf(c.id);
   const open = o.filter(x => OPEN.has(x.status)).length;
@@ -1796,6 +1874,7 @@ function cardHTML(c){
 }
 
 function renderDeck(){
+  if (ansicht === 'liste' && view.length) { renderListe(); return; }
   deck.innerHTML = '';
   cards = [];
   if (!view.length) {
@@ -2257,6 +2336,11 @@ WBTor.start(function(){
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
   });
 });
+
+/* Ansicht anwenden, sobald der Bestand steht. */
+document.querySelectorAll('#ansichtSeg button').forEach(b =>
+  b.addEventListener('click', () => ansichtSetzen(b.dataset.a)));
+ansichtSetzen(ansicht);
 })();
 </script>
 </body>
