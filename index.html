@@ -227,6 +227,11 @@ html[data-theme="light"] .vcard.is-center{box-shadow:0 40px 80px -38px rgba(30,4
 .badge i{width:7px;height:7px;border-radius:50%;background:currentColor;font-style:normal}
 .badge.on{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
 .badge.off{color:var(--off)}
+.hc-kontakt{display:flex;flex-direction:column;align-items:center;gap:3px;margin-top:18px;padding-top:14px;
+  border-top:1px solid var(--line);font-family:var(--mono);font-size:12.5px;color:var(--text-2);word-break:break-word}
+.hc-kontakt a{text-decoration:none;border-bottom:1px solid var(--line)}
+.hc-kontakt a:hover{border-color:var(--amber);color:var(--text)}
+.fields .field:last-child:nth-child(odd){grid-column:1/-1}
 .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(196px,1fr));gap:1px;margin-top:20px;
   border:1px solid var(--line);border-radius:15px;overflow:hidden;background:var(--line)}
 .field{background:var(--glass-2);padding:13px 15px;min-height:70px}
@@ -2237,7 +2242,15 @@ function renderDetail({ zoom = false } = {}){
     + actionHTML('tel',  'Anrufen',   'tel:' + tel, !!tel)
     + actionHTML('mail', 'E-Mail',    'mailto:' + c.email, !!c.email)
     + actionHTML('map',  'Adresse',   'https://maps.google.com/?q=' + encodeURIComponent(c.adresse.replace(/\n/g, ', ')), !!c.adresse)
-    + '</div></div>'
+    + '</div>'
+    /* Kontakt steht auf der Karte – nur was ausgefüllt ist. Die Tafel
+       darunter trägt allein die Konditionen, nichts doppelt. */
+    + ((c.email || c.telefon || c.adresse) ? '<div class="hc-kontakt">'
+        + (c.telefon ? '<a href="tel:' + esc(tel) + '">' + esc(c.telefon) + '</a>' : '')
+        + (c.email ? '<a href="mailto:' + esc(c.email) + '">' + esc(c.email) + '</a>' : '')
+        + (c.adresse ? '<span>' + esc(c.adresse).replace(/\n/g, ' · ') + '</span>' : '')
+        + '</div>' : '')
+    + '</div>'
 
     + '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:16px">'
     + '<button class="pill sm" type="button" id="toggleActive">' + (c.aktiv ? 'Auf inaktiv setzen' : 'Auf aktiv setzen') + '</button>'
@@ -2245,10 +2258,6 @@ function renderDetail({ zoom = false } = {}){
     + '</div>'
 
     + '<dl class="fields">'
-    + fld('Ansprechpartner', c.ansprechpartner)
-    + fld('E-Mail', c.email ? '<a href="mailto:' + esc(c.email) + '">' + esc(c.email) + '</a>' : '', true)
-    + fld('Telefon', c.telefon ? '<a href="tel:' + esc(c.telefon.replace(/\s/g,'')) + '">' + esc(c.telefon) + '</a>' : '', true)
-    + fld('Adresse', c.adresse ? esc(c.adresse).replace(/\n/g, '<br>') : '', true)
     + fld('Stundensatz', c.stundensatz != null ? eur2.format(c.stundensatz) + ' / h' : '')
     + fld('Zahlungsziel', c.zahlungsziel != null ? c.zahlungsziel + ' Tage' : '')
     + fld('Steuersatz', c.steuersatz != null ? dec.format(c.steuersatz) + ' %' : '')
