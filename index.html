@@ -2254,7 +2254,6 @@ function renderDetail({ zoom = false } = {}){
 
     + '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:16px">'
     + '<button class="pill sm" type="button" id="toggleActive">' + (c.aktiv ? 'Auf inaktiv setzen' : 'Auf aktiv setzen') + '</button>'
-    + '<button class="pill sm" type="button" id="editClient2">Stammdaten bearbeiten</button>'
     + '</div>'
 
     + '<dl class="fields">'
@@ -2279,7 +2278,6 @@ function renderDetail({ zoom = false } = {}){
     + '</div></div>';
 
   $('#editClient').addEventListener('click', () => clientDlg(c.id));
-  $('#editClient2').addEventListener('click', () => clientDlg(c.id));
   $('#toggleActive').addEventListener('click', () => { c.aktiv = !c.aktiv; save(); render(); });
   $('#newOrder').addEventListener('click', () => orderDlg(null, c.id));
   $('#foldOrders').addEventListener('click', () => {
