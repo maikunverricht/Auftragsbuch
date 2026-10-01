@@ -381,6 +381,10 @@ footer.site span{min-width:0}
   animation:wbpuls 1.6s ease-in-out infinite}
 @keyframes wbpuls{0%,100%{opacity:1}50%{opacity:.25}}
 
+/* Stundenkonto */
+.badge.konto{text-decoration:none;color:var(--amber);border-color:color-mix(in srgb,var(--amber) 45%,transparent)}
+.badge.konto.warn{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,transparent)}
+
 /* Verweis auf NoteOS */
 .badge.note{text-decoration:none;cursor:pointer}
 .badge.note:hover{border-color:var(--acc,#63D9C4);color:var(--acc,#63D9C4)}
@@ -584,9 +588,12 @@ html[data-theme="light"]{
       <label>Ansprechpartner<input name="ansprechpartner" maxlength="120" autocomplete="off"></label>
       <label>E-Mail<input name="email" type="email" maxlength="160" autocomplete="off"></label>
       <label>Telefon<input name="telefon" maxlength="60" autocomplete="off"></label>
-      <label>Stundensatz (€)<input name="stundensatz" type="number" min="0" step="0.5" inputmode="decimal"></label>
+      <label>Stundensatz (€)<input name="stundensatz" type="number" min="0" step="0.01" inputmode="decimal"></label>
       <label>Zahlungsziel (Tage)<input name="zahlungsziel" type="number" min="0" step="1" inputmode="numeric" placeholder="14"></label>
       <label>Steuersatz (%)<input name="steuersatz" type="number" min="0" max="100" step="0.1" inputmode="decimal" placeholder="19"></label>
+      <label>Grenze (€/Monat)<input name="grenze" type="number" min="0" step="0.01" inputmode="decimal" placeholder="z. B. 603"></label>
+      <label>Grenze gilt ab<input name="grenzeAb" type="month"></label>
+      <p class="wide" id="grenzeHist" style="margin:-4px 0 0;font-size:13px;color:var(--text-3)">Über der Grenze geleistete Stunden führt die Stempeluhr als Stundenkonto und zahlt sie in schwächeren Monaten aus.</p>
       <label class="wide">Adresse<textarea name="adresse" rows="3" maxlength="400" placeholder="Straße Nr.&#10;PLZ Ort"></textarea></label>
       <label class="wide">Notizen<textarea name="notizen" rows="4" maxlength="2000"></textarea></label>
       <label class="check wide"><input type="checkbox" name="aktiv" checked> Auftraggeber ist aktiv</label>
@@ -615,7 +622,7 @@ html[data-theme="light"]{
         <option value="abgeschlossen">abgeschlossen</option>
         <option value="abgerechnet">abgerechnet</option>
       </select></label>
-      <label>Stundensatz (€) <span style="text-transform:none;letter-spacing:0;color:var(--text-3)">– optional</span><input name="stundensatz" type="number" min="0" step="0.5" inputmode="decimal" id="orderRate"></label>
+      <label>Stundensatz (€) <span style="text-transform:none;letter-spacing:0;color:var(--text-3)">– optional</span><input name="stundensatz" type="number" min="0" step="0.01" inputmode="decimal" id="orderRate"></label>
       <label>Budget (Stunden)<input name="budgetStunden" type="number" min="0" step="0.5" inputmode="decimal"></label>
       <label>Budget (€)<input name="budgetEuro" type="number" min="0" step="10" inputmode="decimal"></label>
       <label>Startdatum<input name="start" type="date"></label>
@@ -1530,7 +1537,8 @@ function normalize(raw){
     zahlungsziel: num(x.zahlungsziel),
     steuersatz: num(x.steuersatz),
     notizen: String(x.notizen || ''),
-    aktiv: x.aktiv !== false
+    aktiv: x.aktiv !== false,
+    monatsgrenze: grenzenNorm(x.monatsgrenze)
   }));
   const ids = new Set(d.auftraggeber.map(x => x.id));
   d.auftraege = O.filter(x => x && typeof x === 'object' && ids.has(String(x.auftraggeberId))).map(x => ({
@@ -1548,6 +1556,27 @@ function normalize(raw){
   }));
   return d;
 }
+/* ═══════ Auszahlungsgrenze je Monat ═══════
+   z. B. Minijob 603 €. Geführt als Liste mit Gültigkeit ab Monat, damit
+   eine spätere Anhebung alte Monate nicht umschreibt. Die Stempeluhr
+   liest sie und führt daraus das Stundenkonto. */
+function grenzenNorm(g){
+  return (Array.isArray(g) ? g : []).map(x => ({ ab: String(x && x.ab || '').slice(0,7),
+    eur: x && x.eur != null && x.eur !== '' ? num(x.eur) : null }))
+    .filter(x => /^\d{4}-\d{2}$/.test(x.ab)).sort((a,b) => a.ab.localeCompare(b.ab));
+}
+const ymHeute = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); };
+const ymDe = ym => { const p = String(ym).split('-'); return p.length === 2 ? p[1] + '/' + p[0] : ym; };
+function grenzeAm(c, ym){ let v = null; (c && c.monatsgrenze || []).forEach(x => { if (x.ab <= ym) v = x.eur; }); return v; }
+function grenzeSetzen(c, wert, ab){
+  if (!/^\d{4}-\d{2}$/.test(ab || '')) return;
+  const rest = (c.monatsgrenze || []).filter(x => x.ab !== ab);
+  if (grenzeAm({ monatsgrenze: rest }, ab) === wert) { c.monatsgrenze = rest; return; }
+  rest.push({ ab, eur: wert });
+  c.monatsgrenze = grenzenNorm(rest);
+}
+function kontoVon(id){ return zeiten && zeiten.konto ? zeiten.konto[id] || null : null; }
+
 const ordersOf = id => data.auftraege.filter(o => o.auftraggeberId === id);
 const clientOf = id => data.auftraggeber.find(c => c.id === id) || null;
 const rateOf = o => (o.stundensatz != null ? o.stundensatz : (clientOf(o.auftraggeberId)?.stundensatz ?? null));
@@ -2184,6 +2213,7 @@ function renderDetail({ zoom = false } = {}){
     + '<div class="hc-badges">'
     + '<span class="badge ' + (c.aktiv ? 'on' : 'off') + '"><i></i>' + (c.aktiv ? 'aktiv' : 'inaktiv') + '</span>'
     + '<span class="badge">' + os.length + ' Aufträge</span>'
+    + kontoBadge(c.id)
     + (zeitVonKunde(c.id) ? '<span class="badge book"><i></i>' + dec.format(zeitVonKunde(c.id).sec/3600) + ' h gebucht</span>' : '')
     + (notizenVon(c.name) ? '<a class="badge note" href="https://maikunverricht.github.io/NoteOS/" target="_blank" rel="noopener">' + notizenVon(c.name) + (notizenVon(c.name) === 1 ? ' Notiz' : ' Notizen') + ' ↗</a>' : '')
     + (sumE ? '<span class="badge">' + eur.format(sumE) + ' offen</span>' : '')
@@ -2209,6 +2239,7 @@ function renderDetail({ zoom = false } = {}){
     + fld('Stundensatz', c.stundensatz != null ? eur2.format(c.stundensatz) + ' / h' : '')
     + fld('Zahlungsziel', c.zahlungsziel != null ? c.zahlungsziel + ' Tage' : '')
     + fld('Steuersatz', c.steuersatz != null ? dec.format(c.steuersatz) + ' %' : '')
+    + (grenzeAm(c, ymHeute()) != null ? fld('Auszahlungsgrenze', eur2.format(grenzeAm(c, ymHeute())) + ' / Monat') : '')
     + '</dl>'
     + (c.notizen ? '<dl class="notes"><dt>Notizen</dt><dd>' + esc(c.notizen) + '</dd></dl>' : '')
 
@@ -2269,6 +2300,16 @@ function zoomHero(){
     { transform:'none', opacity:1 }
   ], { duration:540, easing:'cubic-bezier(.2,.8,.2,1)' });
 }
+/* Stundenkonto aus der Stempeluhr – nur bei Auszahlungsgrenze. */
+function kontoBadge(id){
+  const k = kontoVon(id);
+  if (!k) return '';
+  if (!(k.h > 0.005)) return '<span class="badge on"><i></i>Stundenkonto ausgeglichen</span>';
+  const warn = k.alter >= 10;
+  return '<a class="badge konto' + (warn ? ' warn' : '') + '" href="https://maikunverricht.github.io/Stempeluhr/" target="_blank" rel="noopener"'
+    + ' title="' + (k.ausgleichBis ? 'Ausgleich spätestens bis ' + ymDe(k.ausgleichBis) : '') + '">'
+    + '<i></i>Stundenkonto +' + dec.format(k.h) + ' h · ' + eur.format(k.eur) + ' offen ↗</a>';
+}
 function fld(label, value, raw){
   const v = value == null ? '' : String(value);
   return '<div class="field"><dt>' + label + '</dt><dd' + (v ? '' : ' class="muted"') + '>'
@@ -2296,6 +2337,13 @@ function clientDlg(id){
   E.steuersatz.value = c && c.steuersatz != null ? c.steuersatz : (c ? '' : 19);
   E.notizen.value = c ? c.notizen : '';
   E.aktiv.checked = c ? c.aktiv : true;
+  const gNow = c ? grenzeAm(c, ymHeute()) : null;
+  E.grenze.value = gNow != null ? gNow : '';
+  E.grenzeAb.value = ymHeute();
+  const hist = c && c.monatsgrenze && c.monatsgrenze.length
+    ? 'Bisher: ' + c.monatsgrenze.map(x => 'ab ' + ymDe(x.ab) + ' ' + (x.eur != null ? eur2.format(x.eur) : 'keine')).join(' · ') + '. '
+    : '';
+  $('#grenzeHist').textContent = hist + 'Über der Grenze geleistete Stunden führt die Stempeluhr als Stundenkonto und zahlt sie in schwächeren Monaten aus.';
   $('#delClient').hidden = !c;
   openDlg($('#dlgClient'));
   setTimeout(() => E.name.focus(), 60);
@@ -2316,8 +2364,9 @@ $('#formClient').addEventListener('submit', e => {
     notizen: E.notizen.value.trim(),
     aktiv: E.aktiv.checked
   };
-  if (editClientId) Object.assign(clientOf(editClientId), payload);
-  else { const c = { id: uid(), ...payload }; data.auftraggeber.push(c); selectedId = c.id; letter = null; query = ''; $('#q').value = ''; filter = 'alle'; setSeg(); }
+  const gWert = num(E.grenze.value), gAb = E.grenzeAb.value || ymHeute();
+  if (editClientId) { const c0 = clientOf(editClientId); Object.assign(c0, payload); grenzeSetzen(c0, gWert, gAb); }
+  else { const c = { id: uid(), ...payload, monatsgrenze: [] }; grenzeSetzen(c, gWert, gAb); data.auftraggeber.push(c); selectedId = c.id; letter = null; query = ''; $('#q').value = ''; filter = 'alle'; setSeg(); }
   save(); render(); toast(editClientId ? 'Gespeichert' : 'Auftraggeber angelegt');
 });
 $('#delClient').addEventListener('click', () => {
