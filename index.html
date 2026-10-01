@@ -593,7 +593,7 @@ html[data-theme="light"]{
       <label>Ansprechpartner<input name="ansprechpartner" maxlength="120" autocomplete="off"></label>
       <label>E-Mail<input name="email" type="email" maxlength="160" autocomplete="off"></label>
       <label>Telefon<input name="telefon" maxlength="60" autocomplete="off"></label>
-      <label>Stundensatz (€)<input name="stundensatz" type="number" min="0" step="0.01" inputmode="decimal"></label>
+      <label>Standard-Stundensatz (€)<input name="stundensatz" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Vorschlag für neue Aufträge"></label>
       <label>Zahlungsziel (Tage)<input name="zahlungsziel" type="number" min="0" step="1" inputmode="numeric" placeholder="14"></label>
       <label>Steuersatz (%)<input name="steuersatz" type="number" min="0" max="100" step="0.1" inputmode="decimal" placeholder="19"></label>
       <label>Grenze (€/Monat)<input name="grenze" type="number" min="0" step="0.01" inputmode="decimal" placeholder="z. B. 603"></label>
@@ -629,7 +629,7 @@ html[data-theme="light"]{
         <option value="abgeschlossen">abgeschlossen</option>
         <option value="abgerechnet">abgerechnet</option>
       </select></label>
-      <label>Stundensatz (€) <span style="text-transform:none;letter-spacing:0;color:var(--text-3)">– optional</span><input name="stundensatz" type="number" min="0" step="0.01" inputmode="decimal" id="orderRate"></label>
+      <label>Stundensatz (€)<input name="stundensatz" type="number" min="0" step="0.01" inputmode="decimal" id="orderRate"></label>
       <label>Budget (Stunden)<input name="budgetStunden" type="number" min="0" step="0.5" inputmode="decimal"></label>
       <label>Budget (€)<input name="budgetEuro" type="number" min="0" step="10" inputmode="decimal"></label>
       <label>Startdatum<input name="start" type="date"></label>
@@ -1769,6 +1769,18 @@ async function fsDetach(){
   fileDlg(); toast('Verknüpfung gelöst – Daten liegen wieder im Browser.');
 }
 
+/* Einmalig und danach bei jedem Laden harmlos: Aufträge ohne eigenen Satz
+   bekommen den heutigen Standard ihres Auftraggebers fest eingetragen.
+   Ab dann gilt allein der Satz am Auftrag. */
+function saetzeFestschreiben(){
+  let n = 0;
+  data.auftraege.forEach(o => {
+    if (o.stundensatz != null) return;
+    const c = clientOf(o.auftraggeberId);
+    if (c && c.stundensatz != null) { o.stundensatz = c.stundensatz; n++; }
+  });
+  return n;
+}
 async function boot(){
   if (FSA) {
     try {
@@ -2175,7 +2187,9 @@ function bilanzHTML(o){
 
 function orderHTML(o){
   const r = rateOf(o);
-  const own = o.stundensatz != null;
+  /* Markiert wird, was vom heutigen Standard des Auftraggebers abweicht. */
+  const std = clientOf(o.auftraggeberId)?.stundensatz;
+  const own = o.stundensatz != null && std != null && o.stundensatz !== std;
   const s = fmtDate(o.start), e = fmtDate(o.ende);
   const span = s && e ? s + ' – ' + e : (s ? 'ab ' + s : (e ? 'bis ' + e : '–'));
   const open = openOrderId === o.id;
@@ -2197,7 +2211,7 @@ function orderHTML(o){
     + '</div>'
     + balkenHTML(o)
     + bilanzHTML(o)
-    + (own ? '<div class="o-num" style="font-family:var(--mono);font-size:11px;color:var(--text-3)">* abweichend vom Satz des Auftraggebers</div>' : '')
+    + (own ? '<div class="o-num" style="font-family:var(--mono);font-size:11px;color:var(--text-3)">* abweichend vom Standard des Auftraggebers</div>' : '')
     + '<div class="o-acts"><button class="pill sm" type="button" data-edit="' + esc(o.id) + '">Bearbeiten</button>'
     + '<button class="pill sm" type="button" data-dup="' + esc(o.id) + '">Duplizieren</button></div>'
     + '</div></div></div></div>';
@@ -2257,7 +2271,7 @@ function renderDetail({ zoom = false } = {}){
     + '</div>'
 
     + '<dl class="fields">'
-    + fld('Stundensatz', c.stundensatz != null ? eur2.format(c.stundensatz) + ' / h' : '')
+    + fld('Standard-Stundensatz', c.stundensatz != null ? eur2.format(c.stundensatz) + ' / h' : '')
     + fld('Zahlungsziel', c.zahlungsziel != null ? c.zahlungsziel + ' Tage' : '')
     + fld('Steuersatz', c.steuersatz != null ? dec.format(c.steuersatz) + ' %' : '')
     + (grenzeAm(c, ymHeute()) != null ? fld('Auszahlungsgrenze', eur2.format(grenzeAm(c, ymHeute())) + ' / Monat') : '')
@@ -2418,6 +2432,7 @@ function orderDlg(id, clientId){
   E.projektnummer.value = o ? o.projektnummer : '';
   E.status.value = o ? o.status : 'geplant';
   E.stundensatz.value = o && o.stundensatz != null ? o.stundensatz : '';
+  rateVorschlag = null;
   E.budgetStunden.value = o && o.budgetStunden != null ? o.budgetStunden : '';
   E.budgetEuro.value = o && o.budgetEuro != null ? o.budgetEuro : '';
   E.start.value = o ? o.start : '';
@@ -2428,9 +2443,20 @@ function orderDlg(id, clientId){
   openDlg($('#dlgOrder'));
   setTimeout(() => E.name.focus(), 60);
 }
+/* Der Standard-Satz des Auftraggebers ist nur ein Vorschlag: er wird ins
+   Feld vorgetragen und mit dem Auftrag fest gespeichert. Wechselt der
+   Auftraggeber, zieht der Vorschlag mit – solange niemand von Hand
+   etwas anderes eingetragen hat. */
+let rateVorschlag = null;
 function hintRate(){
   const c = clientOf($('#orderClientSel').value);
-  $('#orderRate').placeholder = c && c.stundensatz != null ? 'Standard: ' + c.stundensatz : 'kein Standardsatz';
+  const std = c && c.stundensatz != null ? c.stundensatz : null;
+  const f = $('#orderRate');
+  f.placeholder = std != null ? 'Standard: ' + std : 'kein Standardsatz';
+  if (!editOrderId && (f.value === '' || num(f.value) === rateVorschlag)) {
+    f.value = std != null ? std : '';
+    rateVorschlag = std;
+  }
 }
 $('#orderClientSel').addEventListener('change', hintRate);
 $('#formOrder').addEventListener('submit', e => {
@@ -2512,6 +2538,8 @@ addEventListener('visibilitychange', () => {
 zeitenLesen(); notizenLesen(); rechnungenLesen();
 WBTor.start(function(){
   boot().then(() => {
+    const n = saetzeFestschreiben();
+    if (n && !(window.WBTor && WBTor.zu())) { save(); toast(n + (n === 1 ? ' Auftrag hat' : ' Aufträge haben') + ' den Standard-Satz fest übernommen'); }
     render();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
   });
