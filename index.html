@@ -1602,9 +1602,12 @@ function zeitenLesen(){ zeiten = WB.lesen(WB_ZEIT_LS); }
    abgelegt sind. Mehr braucht es hier nicht — die Notizen selbst
    bleiben drüben. */
 function notizenLesen(){ notizen = WB.lesen(WB_NOTES_LS); }
-function notizenVon(name){
-  const j = notizen && notizen.jeKategorie ? notizen.jeKategorie[name] : 0;
-  return j || 0;
+/* Zuerst über die ID – sie übersteht ein Umbenennen. Der Name ist nur
+   Rückfall für ein NoteOS, das die IDs noch nicht meldet. */
+function notizenVon(c){
+  if (!notizen || !c) return 0;
+  if (notizen.jeAuftraggeber && notizen.jeAuftraggeber[c.id] != null) return notizen.jeAuftraggeber[c.id] || 0;
+  return (notizen.jeKategorie && notizen.jeKategorie[c.name]) || 0;
 }
 /* ═══════ Was wurde für diesen Auftrag abgerechnet? ═══════
    Gelesen wird die Lesekopie des Rechnungsbuchs. Gezählt wird netto —
@@ -2225,7 +2228,7 @@ function renderDetail({ zoom = false } = {}){
     + '<span class="badge">' + os.length + ' Aufträge</span>'
     + kontoBadge(c.id)
     + (zeitVonKunde(c.id) ? '<span class="badge book"><i></i>' + dec.format(zeitVonKunde(c.id).sec/3600) + ' h gebucht</span>' : '')
-    + (notizenVon(c.name) ? '<a class="badge note" href="https://maikunverricht.github.io/NoteOS/" target="_blank" rel="noopener">' + notizenVon(c.name) + (notizenVon(c.name) === 1 ? ' Notiz' : ' Notizen') + ' ↗</a>' : '')
+    + (notizenVon(c) ? '<a class="badge note" href="https://maikunverricht.github.io/NoteOS/" target="_blank" rel="noopener">' + notizenVon(c) + (notizenVon(c) === 1 ? ' Notiz' : ' Notizen') + ' ↗</a>' : '')
     + (sumE ? '<span class="badge">' + eur.format(sumE) + ' offen</span>' : '')
     + (sumH ? '<span class="badge">' + dec.format(sumH) + ' h offen</span>' : '')
     + '</div>'
