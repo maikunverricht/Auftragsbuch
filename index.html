@@ -13,7 +13,11 @@
 <script>
 (function(){var t=null;try{t=localStorage.getItem('wb-theme')}catch(e){}
 if(t!=='light'&&t!=='dark'){t=window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'}
-document.documentElement.setAttribute('data-theme',t);})();
+document.documentElement.setAttribute('data-theme',t);
+/* Im Kontor läuft das Werkzeug in einem Rahmen; der Kontor bringt seinen
+   eigenen Kopf mit. Früh setzen, damit nichts aufblitzt. */
+var eb=false;try{eb=window.self!==window.top}catch(e){eb=true}
+if(eb)document.documentElement.classList.add('eingebettet');})();
 </script>
 <style>
 :root{
@@ -523,13 +527,14 @@ html[data-theme="light"]{
    bleibt eine ruhige Fläche mit den zwei Wegen hinein. Passt nur der
    Filter nicht, bleibt die Leiste stehen und die Fläche wird schmal. */
 .empty-stage{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;
-  padding:clamp(36px,6vw,60px) 22px;border:1px dashed var(--line-strong,var(--line));border-radius:20px;
+  padding:clamp(28px,4vw,40px) 22px;border:1px dashed var(--line-strong,var(--line));border-radius:20px;
   background:var(--glass);color:var(--text-2);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
-.empty-stage .es-mark{width:56px;height:56px;border-radius:17px;display:grid;place-items:center;
+html[data-theme="light"] .empty-stage{border-color:rgba(17,28,44,.30);background:rgba(255,255,255,.72)}
+.empty-stage .es-mark{width:66px;height:66px;border-radius:20px;display:grid;place-items:center;
   color:var(--amber);background:var(--amber-soft,color-mix(in srgb,var(--amber) 14%,transparent));
   border:1px solid color-mix(in srgb,var(--amber) 34%,transparent)}
-.empty-stage .es-mark svg{width:25px;height:25px}
-.empty-stage h2{margin:0;font-size:clamp(21px,3vw,26px);line-height:1.15;letter-spacing:-.03em;
+.empty-stage .es-mark svg{width:30px;height:30px}
+.empty-stage h2{margin:0;font-size:clamp(23px,3.2vw,30px);line-height:1.15;letter-spacing:-.03em;
   color:var(--text);font-weight:700;font-variation-settings:'wdth' 110}
 .empty-stage p{margin:0;max-width:420px;font-size:15px;line-height:1.55}
 .empty-stage .es-acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:6px}
@@ -546,6 +551,21 @@ body.leer .stage{margin-top:30px}
    unsichtbar, bis er gebraucht wird. */
 .toast{visibility:hidden}
 .toast.show{visibility:visible}
+
+/* ═══ Im Kontor ═══
+   Der Kontor zeigt Titel und Rückweg schon an. Die eigene Navigationspille
+   entfällt, Dateistatus und Hell/Dunkel wandern in die Fußzeile, und die
+   Überschrift rückt nach oben. */
+html.eingebettet .nav{display:none}
+html.eingebettet .head{padding-top:30px}
+html.eingebettet #srcBtn{display:none}
+footer.site{align-items:center}
+footer.site .filechip{height:30px;font-size:12px;padding:0 11px}
+footer.site .icon-btn{width:30px;height:30px}
+
+/* Lizenzvermerk in der Fußzeile statt allein darunter. */
+footer.site .wbl-band.wbl-ok{display:inline;padding:0;border:0;background:none;
+  font:inherit;letter-spacing:inherit;text-transform:none;color:inherit}
 
 /* Lizenzband am Telefon: Text und Knopf untereinander statt in drei
    schmalen Spalten. Der Lizenzblock selbst bleibt wortgleich. */
@@ -2621,6 +2641,31 @@ WBTor.start(function(){
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
   });
 });
+
+/* Im Kontor: Dateistatus und Hell/Dunkel ziehen in die Fußzeile – die
+   Knöpfe behalten ihre Handler, sie stehen nur woanders. */
+if (root.classList.contains('eingebettet')) {
+  const fr = $('footer.site .f-r');
+  fr.insertBefore($('#themeBtn'), fr.firstChild);
+  fr.insertBefore($('#fileChip'), fr.firstChild);
+  $('#themeBtn').classList.add('sm');
+}
+/* Der Lizenzvermerk erscheint nach der Prüfung am Seitenende; er wird
+   hinter das © in die Fußzeile geholt. */
+(function(){
+  const links = $('footer.site > span');
+  const holen = () => {
+    const b = document.getElementById('wbl-band');
+    if (!b || !b.classList.contains('wbl-ok') || links.contains(b)) return false;
+    links.appendChild(document.createTextNode(' · '));
+    links.appendChild(b);
+    return true;
+  };
+  if (holen()) return;
+  const mo = new MutationObserver(() => { if (holen()) mo.disconnect(); });
+  mo.observe(document.body, { childList:true });
+  setTimeout(() => mo.disconnect(), 10000);
+})();
 
 /* Ansicht anwenden, sobald der Bestand steht. */
 document.querySelectorAll('#ansichtSeg button').forEach(b =>
