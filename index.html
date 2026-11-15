@@ -567,6 +567,33 @@ footer.site .icon-btn{width:30px;height:30px}
 footer.site .wbl-band.wbl-ok{display:inline;padding:0;border:0;background:none;
   font:inherit;letter-spacing:inherit;text-transform:none;color:inherit}
 
+/* ═══ Übernahme aus Excel / CSV ═══ */
+#dlgImp{max-width:min(860px,94vw)}
+.imp-info{margin:0 0 14px;color:var(--text-2);font-size:14.5px}
+.imp-info b{color:var(--text);font-weight:600}
+.imp-h{margin:22px 0 10px;font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--text-3)}
+.imp-kopf{align-items:end}
+.imp-map{grid-template-columns:repeat(auto-fit,minmax(176px,1fr));gap:10px 12px}
+.imp-map label select{height:38px;font-size:14px;padding-right:30px;text-overflow:ellipsis}
+.imp-map label.zu{color:var(--text-2)}
+.imp-map label.zu select{border-color:var(--line-hi)}
+.imp-tab{overflow:auto;border:1px solid var(--line);border-radius:12px;max-height:260px;background:var(--glass)}
+.imp-tab table{border-collapse:collapse;width:100%;font-size:13px}
+.imp-tab th,.imp-tab td{padding:7px 11px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--line);
+  max-width:240px;overflow:hidden;text-overflow:ellipsis}
+.imp-tab tr:last-child td{border-bottom:0}
+.imp-tab th{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:500;
+  color:var(--text-3);position:sticky;top:0;background:var(--surface)}
+.imp-tab td:first-child{font-family:var(--mono);font-size:11px}
+.imp-tab .st-neu{color:var(--ok)}
+.imp-tab .st-alt{color:var(--amber)}
+.imp-tab .st-weg{color:var(--text-3)}
+.imp-tab .hint{padding:18px}
+.imp-mehr{margin:0;padding:8px 11px;font-family:var(--mono);font-size:11px;color:var(--text-3)}
+.imp-sum{margin:12px 0 0;font-size:14px;color:var(--text-2)}
+.imp-sum.fehlt{color:var(--bad)}
+
 /* Lizenzband am Telefon: Text und Knopf untereinander statt in drei
    schmalen Spalten. Der Lizenzblock selbst bleibt wortgleich. */
 @media (max-width:620px){
@@ -637,7 +664,7 @@ footer.site .wbl-band.wbl-ok{display:inline;padding:0;border:0;background:none;
   <span class="f-r"><button class="pill sm" id="srcBtn" type="button">Datenablage</button><a href="https://maikunverricht.github.io/WerkbankUnverricht/">Werkbank ↗</a></span>
 </footer>
 
-<input type="file" id="fileInput" accept=".json,application/json,text/json,text/plain" hidden>
+<input type="file" id="fileInput" accept=".json,.xlsx,.xls,.ods,.csv,.tsv,.txt,application/json,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" hidden>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- Auftraggeber-Formular -->
@@ -710,17 +737,47 @@ footer.site .wbl-band.wbl-ok{display:inline;padding:0;border:0;background:none;
       Die Inhalte liegen in einer eigenen JSON-Datei an einem Ort deiner Wahl – lokale Platte, Netzlaufwerk oder Cloud-Ordner.
       Die Seite selbst speichert nichts außerhalb dieser Datei.
     </p>
+    <p style="margin:-8px 0 18px;color:var(--text-3);font-size:14px">
+      Importieren nimmt auch Excel (.xlsx) und CSV: Auftraggeber aus einer Liste werden zum Bestand hinzugefügt.
+      Eine JSON-Sicherung ersetzt dagegen den ganzen Bestand.
+    </p>
     <div class="form" id="fileActions" style="grid-template-columns:1fr">
       <button class="pill primary" type="button" id="fsOpen">Bestehende Datei öffnen</button>
       <button class="pill" type="button" id="fsNew">Neue Datei anlegen</button>
       <button class="pill" type="button" id="fsExport">Als Datei sichern (Export)</button>
-      <button class="pill" type="button" id="fsImport">Aus Datei laden (Import)</button>
+      <button class="pill" type="button" id="fsImport">Importieren – JSON, Excel oder CSV</button>
       <button class="pill" type="button" id="fsDetach" hidden>Verknüpfung lösen</button>
     </div>
     <p class="err" id="fsNote" style="color:var(--text-3)" hidden></p>
   </div>
   <footer><button class="pill" type="button" data-close style="margin-left:auto">Schließen</button></footer>
 </div></dialog>
+
+<!-- Übernahme aus Excel / CSV -->
+<dialog id="dlgImp"><form class="sheet" method="dialog" id="formImp">
+  <header><h3>Auftraggeber übernehmen</h3><button class="pill icon-btn sm" type="button" data-close aria-label="Schließen">✕</button></header>
+  <div class="body">
+    <p class="imp-info" id="impInfo"></p>
+    <div class="form imp-kopf">
+      <label id="impBlattL">Tabellenblatt<select id="impBlatt"></select></label>
+      <label class="check"><input type="checkbox" id="impKopf" checked> Erste Zeile enthält die Spaltennamen</label>
+    </div>
+    <p class="imp-h">Spalten zuordnen</p>
+    <div class="form imp-map" id="impMap"></div>
+    <p class="imp-h" id="impDupH">Name schon vorhanden</p>
+    <div class="seg" id="impDup" role="group" aria-label="Doppelte Namen">
+      <button type="button" data-d="aktualisieren" aria-pressed="true">aktualisieren</button>
+      <button type="button" data-d="ueberspringen" aria-pressed="false">überspringen</button>
+    </div>
+    <p class="imp-h">Vorschau</p>
+    <div class="imp-tab" id="impTab"></div>
+    <p class="imp-sum" id="impSum"></p>
+  </div>
+  <footer>
+    <button class="pill" type="button" data-close>Abbrechen</button>
+    <button class="pill primary" type="submit" id="impOk">Übernehmen</button>
+  </footer>
+</form></dialog>
 
 <!-- ══════════════════════════════════════════════════════════════
      LIZENZBLOCK  (lizenz.js + lizenz-tor.js + Konfiguration)
@@ -1393,7 +1450,7 @@ WBTor({
   "eigen": [
     "wb-auftragsbuch-data"
   ],
-  "schreiben": "#newClient,#newOrder,#emptyNew,#editClient,#editClient2,#toggleActive,#delClient,#delOrder,#importBtn,#fsOpen,#fsNew,#fsImport,#fsDetach,#formClient,#formOrder,[data-edit]",
+  "schreiben": "#newClient,#newOrder,#emptyNew,#editClient,#editClient2,#toggleActive,#delClient,#delOrder,#importBtn,#fsOpen,#fsNew,#fsImport,#fsDetach,#formClient,#formOrder,#formImp,#impOk,[data-edit]",
   "ausgabe": "#exportBtn,#fsExport",
   "demo": {
     "wb-auftragsbuch-data": {
@@ -1894,8 +1951,270 @@ async function exportieren(){
 $('#fsExport').addEventListener('click', exportieren);
 ($('#importBtn') || { addEventListener(){} }).addEventListener('click', () => $('#fileInput').click());
 $('#fsImport').addEventListener('click', () => { $('#dlgFile').close(); $('#fileInput').click(); });
+/* ═══════ Übernahme aus Excel oder CSV ═══════
+   Eine Liste mit Auftraggebern wird zum Bestand HINZUGEFÜGT – anders als
+   die JSON-Sicherung, die ihn ersetzt. Die Spalten ordnet man im Dialog
+   zu; vorgeschlagen wird nach den üblichen Überschriften. Gleicher Name
+   heißt gleicher Auftraggeber: er wird ergänzt oder übersprungen. */
+const IMP_FELDER = [
+  { k:'name', l:'Name', pflicht:true, s:['name','firma','firmenname','unternehmen','kunde','kundenname','auftraggeber','company'] },
+  { k:'ansprechpartner', l:'Ansprechpartner', s:['ansprechpartner','ansprechperson','kontaktperson','kontakt','contact'] },
+  { k:'email', l:'E-Mail', s:['email','mail','emailadresse'] },
+  { k:'telefon', l:'Telefon', s:['telefon','tel','telefonnummer','rufnummer','phone','mobil','handy'] },
+  { k:'adresse', l:'Adresse (komplett)', s:['adresse','anschrift','address'] },
+  { k:'strasse', l:'Straße', s:['strasse','str','strassehausnummer','strassenr','street'] },
+  { k:'plz', l:'PLZ', s:['plz','postleitzahl','zip'] },
+  { k:'ort', l:'Ort', s:['ort','stadt','city','wohnort'] },
+  { k:'stundensatz', l:'Stundensatz (€)', s:['stundensatz','satz','stundenlohn','rate','honorar'] },
+  { k:'zahlungsziel', l:'Zahlungsziel (Tage)', s:['zahlungsziel','zahlungsfrist','ziel'] },
+  { k:'steuersatz', l:'Steuersatz (%)', s:['steuersatz','mwst','ust','umsatzsteuer','steuer'] },
+  { k:'notizen', l:'Notizen', s:['notizen','notiz','bemerkung','bemerkungen','kommentar','info'] },
+  { k:'aktiv', l:'Aktiv', s:['aktiv','status'] }
+];
+const impNorm = s => String(s ?? '').toLowerCase().replace(/ß/g,'ss').replace(/ä/g,'ae')
+  .replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/[^a-z0-9]/g,'');
+const impText = v => v == null ? '' : (v instanceof Date ? v.toISOString().slice(0,10) : String(v)).trim();
+const spaltenBuchstabe = i => { let s = ''; i++; while (i > 0) { const m = (i-1) % 26; s = String.fromCharCode(65+m) + s; i = Math.floor((i-1)/26); } return s; };
+/* „1.234,50 €", „98 €/h", „30 Tage", 19 % – alles wird zur Zahl. */
+function impZahl(v){
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  let s = impText(v).replace(/[€%\s]/g, '').replace(/[a-zäöü\/]+$/i, '');
+  if (!s) return null;
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+/* CSV: Trennzeichen aus der ersten Zeile, Anführungszeichen nach RFC 4180. */
+function csvLesen(text){
+  text = text.replace(/^﻿/, '');
+  const erste = text.split(/\r?\n/).find(l => l.trim()) || '';
+  const trenn = [';', ',', '\t'].map(d => [d, erste.split(d).length]).sort((a,b) => b[1] - a[1])[0][0];
+  const rows = []; let row = [], feld = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) {
+      if (ch === '"') { if (text[i+1] === '"') { feld += '"'; i++; } else q = false; }
+      else feld += ch;
+    } else if (ch === '"') q = true;
+    else if (ch === trenn) { row.push(feld); feld = ''; }
+    else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i+1] === '\n') i++;
+      row.push(feld); rows.push(row); row = []; feld = '';
+    } else feld += ch;
+  }
+  if (feld || row.length) { row.push(feld); rows.push(row); }
+  return rows;
+}
+/* Excel liest SheetJS – nachgeladen erst, wenn wirklich eine .xlsx kommt. */
+let xlsxLaden = null;
+function xlsxBib(){
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  if (!xlsxLaden) xlsxLaden = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+    s.onload = () => window.XLSX ? res(window.XLSX) : rej(new Error('Excel-Leser fehlt'));
+    s.onerror = () => { xlsxLaden = null; rej(new Error('Excel-Leser konnte nicht geladen werden – ist das Gerät online?')); };
+    document.head.appendChild(s);
+  });
+  return xlsxLaden;
+}
+async function tabelleLesen(f){
+  const endung = (f.name.split('.').pop() || '').toLowerCase();
+  if (['csv','tsv','txt'].includes(endung) || f.type === 'text/csv') {
+    const buf = await f.arrayBuffer();
+    let text;
+    try { text = new TextDecoder('utf-8', { fatal:true }).decode(buf); }
+    catch (e) { text = new TextDecoder('windows-1252').decode(buf); }   /* Excel-CSV unter Windows */
+    return [{ name: f.name, rows: csvLesen(text) }];
+  }
+  const X = await xlsxBib();
+  const wb = X.read(await f.arrayBuffer(), { type:'array', cellDates:true });
+  return wb.SheetNames.map(n => ({ name:n, rows: X.utils.sheet_to_json(wb.Sheets[n], { header:1, raw:true, defval:'' }) }));
+}
+
+let imp = null;
+function impSpalten(){
+  const rows = imp.blaetter[imp.blatt].rows.filter(r => Array.isArray(r) && r.some(v => impText(v)));
+  const breite = rows.reduce((m, r) => Math.max(m, r.length), 0);
+  const kopf = imp.kopf && rows.length ? rows[0] : null;
+  const namen = [];
+  for (let i = 0; i < breite; i++) {
+    const t = kopf ? impText(kopf[i]) : '';
+    namen.push(t || 'Spalte ' + spaltenBuchstabe(i));
+  }
+  return { namen, daten: kopf ? rows.slice(1) : rows };
+}
+function impRaten(namen){
+  const map = {}, frei = new Set(namen.map((_, i) => i)), n = namen.map(impNorm);
+  [true, false].forEach(exakt => IMP_FELDER.forEach(f => {
+    if (map[f.k] != null) return;
+    for (const syn of f.s) {
+      const i = n.findIndex((h, j) => frei.has(j) && h &&
+        (exakt ? h === syn : (syn.length >= 4 && h.includes(syn))));
+      if (i >= 0) { map[f.k] = i; frei.delete(i); return; }
+    }
+  }));
+  if (map.name == null && frei.has(0)) map.name = 0;   /* ohne Treffer: erste Spalte */
+  return map;
+}
+function impSatz(r){
+  const has = k => imp.map[k] != null;
+  const g = k => has(k) ? r[imp.map[k]] : undefined;
+  const p = {};
+  ['name','ansprechpartner','email','telefon','notizen'].forEach(k => { if (has(k)) p[k] = impText(g(k)); });
+  if (['adresse','strasse','plz','ort'].some(has)) {
+    let plz = g('plz');
+    if (typeof plz === 'number' && plz < 10000) plz = String(plz).padStart(5, '0');   /* 01067 Dresden */
+    const zeile2 = [impText(plz), impText(g('ort'))].filter(Boolean).join(' ');
+    p.adresse = impText(g('adresse')) || [impText(g('strasse')), zeile2].filter(Boolean).join('\n');
+  }
+  ['stundensatz','zahlungsziel','steuersatz'].forEach(k => { if (has(k)) p[k] = impZahl(g(k)); });
+  /* Excel speichert „19 %" als 0,19 */
+  if (p.steuersatz != null && p.steuersatz > 0 && p.steuersatz < 1) p.steuersatz = Math.round(p.steuersatz * 10000) / 100;
+  if (has('aktiv')) p.aktiv = !/^(nein|no|n|0|false|falsch|inaktiv|ehemalig)$/i.test(impText(g('aktiv')));
+  return p;
+}
+function impPlan(){
+  const { daten } = impSpalten();
+  const vorhanden = new Set(data.auftraggeber.map(c => impNorm(c.name)));
+  const gesehen = new Set();
+  const plan = { zeilen: [], neu:0, alt:0, weg:0, doppelt:0, leer:0 };
+  daten.forEach(r => {
+    const p = impSatz(r), key = impNorm(p.name);
+    let st;
+    if (!key) st = 'leer';
+    else if (vorhanden.has(key)) st = imp.dup === 'aktualisieren' ? 'alt' : 'weg';
+    else if (gesehen.has(key)) st = 'doppelt';
+    else { st = 'neu'; gesehen.add(key); }
+    plan[st]++;
+    plan.zeilen.push({ p, st });
+  });
+  return plan;
+}
+/* alles: neuer Auftraggeber. nurLuecken: zweite Zeile desselben Namens in
+   der Liste – sie füllt nur, was noch fehlt, und überschreibt nichts. */
+function impMischen(c, p, alles, nurLuecken){
+  if (!c) return;
+  Object.keys(p).forEach(k => {
+    const v = p[k];
+    if (k === 'name' && !alles) return;     /* Schreibweise im Bestand bleibt */
+    if (v === '' || v == null) return;      /* leere Zellen löschen nichts */
+    if (nurLuecken && c[k] !== '' && c[k] != null && k !== 'aktiv') return;
+    c[k] = v;
+  });
+}
+function impAnwenden(){
+  const plan = impPlan(), neuObj = new Map();
+  let geaendert = 0;
+  plan.zeilen.forEach(z => {
+    const key = impNorm(z.p.name);
+    if (z.st === 'neu') {
+      const c = { id: uid(), name:'', ansprechpartner:'', email:'', telefon:'', adresse:'', stundensatz:null,
+        zahlungsziel:null, steuersatz:19, notizen:'', aktiv:true, monatsgrenze:[], kontoStart:null };
+      impMischen(c, z.p, true); data.auftraggeber.push(c); neuObj.set(key, c);
+    } else if (z.st === 'doppelt') impMischen(neuObj.get(key), z.p, false, true);
+    else if (z.st === 'alt') { impMischen(data.auftraggeber.find(c => impNorm(c.name) === key), z.p); geaendert++; }
+  });
+  return { neu: plan.neu, alt: geaendert };
+}
+function impZeigen(){
+  const { namen, daten } = impSpalten();
+  $('#impBlattL').hidden = imp.blaetter.length < 2;
+  $('#impBlatt').innerHTML = imp.blaetter.map((b, i) =>
+    '<option value="' + i + '"' + (i === imp.blatt ? ' selected' : '') + '>' + esc(b.name) + '</option>').join('');
+  $('#impKopf').checked = imp.kopf;
+  const probe = i => { const r = daten.find(r => impText(r[i])); return r ? impText(r[i]) : ''; };
+  $('#impMap').innerHTML = IMP_FELDER.map(f =>
+    '<label class="' + (imp.map[f.k] != null ? 'zu' : '') + '">' + esc(f.l) + (f.pflicht ? ' *' : '')
+    + '<select data-k="' + f.k + '"><option value="">— nicht übernehmen —</option>'
+    + namen.map((n, i) => {
+        const pr = probe(i), zeig = pr ? n + ' · ' + pr.slice(0, 22) : n;
+        return '<option value="' + i + '"' + (imp.map[f.k] === i ? ' selected' : '') + '>' + esc(zeig) + '</option>';
+      }).join('')
+    + '</select></label>').join('');
+  impVorschau();
+}
+function impVorschau(){
+  const plan = impPlan();
+  const sp = IMP_FELDER.filter(f => imp.map[f.k] != null && !['adresse','strasse','plz','ort'].includes(f.k))
+    .map(f => ({ k:f.k, l:f.l.replace(/ \(.*\)$/, '') }));
+  if (['adresse','strasse','plz','ort'].some(k => imp.map[k] != null)) sp.splice(Math.min(4, sp.length), 0, { k:'adresse', l:'Adresse' });
+  const ST = { neu:['neu','st-neu'], alt:['ergänzt','st-alt'], weg:['übersprungen','st-weg'],
+               doppelt:['doppelt','st-alt'], leer:['ohne Namen','st-weg'] };
+  const zeig = plan.zeilen.slice(0, 8);
+  $('#impTab').innerHTML = !plan.zeilen.length ? '<p class="hint">Keine Datenzeilen gefunden.</p>'
+    : '<table><thead><tr><th></th>' + sp.map(s => '<th>' + esc(s.l) + '</th>').join('') + '</tr></thead><tbody>'
+      + zeig.map(z => '<tr><td class="' + ST[z.st][1] + '">' + ST[z.st][0] + '</td>' + sp.map(s => {
+          let v = z.p[s.k];
+          if (s.k === 'aktiv') v = v === false ? 'nein' : 'ja';
+          else if (typeof v === 'number') v = dec.format(v);
+          return '<td>' + esc(v == null ? '' : String(v).replace(/\n/g, ' · ')) + '</td>';
+        }).join('') + '</tr>').join('')
+      + '</tbody></table>'
+      + (plan.zeilen.length > zeig.length ? '<p class="imp-mehr">… und ' + (plan.zeilen.length - zeig.length) + ' weitere Zeilen</p>' : '');
+  $('#impDupH').hidden = $('#impDup').hidden = !(plan.alt + plan.weg);
+  const sum = $('#impSum'), n = plan.neu + plan.alt;
+  if (imp.map.name == null) {
+    sum.textContent = 'Bitte die Spalte mit dem Namen des Auftraggebers zuordnen.'; sum.className = 'imp-sum fehlt';
+  } else {
+    const t = [];
+    if (plan.neu) t.push(plan.neu + ' neu');
+    if (plan.alt) t.push(plan.alt + ' ergänzt');
+    if (plan.doppelt) t.push(plan.doppelt + ' doppelt in der Liste – zusammengeführt');
+    if (plan.weg) t.push(plan.weg + ' schon vorhanden – übersprungen');
+    if (plan.leer) t.push(plan.leer + ' ohne Namen – ausgelassen');
+    sum.textContent = t.join(' · ') || 'Nichts zu übernehmen.'; sum.className = 'imp-sum';
+  }
+  $('#impOk').textContent = n ? n + ' Auftraggeber übernehmen' : 'Übernehmen';
+  $('#impOk').disabled = imp.map.name == null || !n;
+}
+function impStart(name, blaetter){
+  const b = blaetter.filter(x => x.rows.some(r => Array.isArray(r) && r.some(v => impText(v))));
+  if (!b.length) { toast('In ' + name + ' stehen keine Daten.'); return; }
+  imp = { datei:name, blaetter:b, blatt:0, kopf:true, dup:'aktualisieren', map:{} };
+  imp.map = impRaten(impSpalten().namen);
+  $('#impInfo').innerHTML = '<b>' + esc(name) + '</b> · Spalten zuordnen, Vorschau prüfen, übernehmen. '
+    + 'Die Auftraggeber kommen zum Bestand hinzu, nichts wird gelöscht.';
+  $$('#impDup button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.d === imp.dup)));
+  impZeigen();
+  $('#dlgImp').showModal();
+}
+$('#impMap').addEventListener('change', e => {
+  const s = e.target.closest('select[data-k]'); if (!s || !imp) return;
+  const k = s.dataset.k, v = s.value === '' ? null : +s.value;
+  /* Eine Spalte gehört zu genau einem Feld. */
+  if (v != null) Object.keys(imp.map).forEach(x => { if (x !== k && imp.map[x] === v) imp.map[x] = null; });
+  imp.map[k] = v;
+  impZeigen();
+  const neu = $('#impMap select[data-k="' + k + '"]'); if (neu) neu.focus();
+});
+$('#impBlatt').addEventListener('change', e => { imp.blatt = +e.target.value; imp.map = impRaten(impSpalten().namen); impZeigen(); });
+$('#impKopf').addEventListener('change', e => { imp.kopf = e.target.checked; imp.map = impRaten(impSpalten().namen); impZeigen(); });
+$$('#impDup button').forEach(b => b.addEventListener('click', () => {
+  imp.dup = b.dataset.d;
+  $$('#impDup button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  impVorschau();
+}));
+$('#formImp').addEventListener('submit', e => {
+  if (!imp || imp.map.name == null) { e.preventDefault(); return; }
+  const r = impAnwenden();
+  imp = null;
+  filter = 'alle'; query = ''; letter = null; $('#q').value = ''; setSeg();
+  selectedId = null; center = 0;
+  save({ immediate:true }); render();
+  toast([r.neu ? r.neu + ' Auftraggeber angelegt' : '', r.alt ? r.alt + ' ergänzt' : ''].filter(Boolean).join(' · ') || 'Nichts übernommen');
+});
+
 $('#fileInput').addEventListener('change', async e => {
   const f = e.target.files && e.target.files[0]; if (!f) return;
+  /* Alles, was keine JSON-Sicherung ist, geht in die Übernahme. */
+  if (!/\.json$/i.test(f.name) && f.type !== 'application/json') {
+    try { toast('Lese ' + f.name + ' …'); impStart(f.name, await tabelleLesen(f)); }
+    catch (err) { toast('Tabelle konnte nicht gelesen werden: ' + (err && err.message ? err.message : err)); }
+    finally { e.target.value = ''; }
+    return;
+  }
   try {
     const d = normalize(JSON.parse(await f.text()));
     if (!confirm('Import ersetzt den aktuellen Bestand (' + data.auftraggeber.length + ' Auftraggeber) durch ' + d.auftraggeber.length + ' Auftraggeber. Fortfahren?')) return;
@@ -2063,9 +2382,9 @@ function renderLeer(){
     ? '<div class="empty-stage">'
       + '<span class="es-mark">' + ICON_LEER + '</span>'
       + '<h2>Noch keine Auftraggeber</h2>'
-      + '<p>Lege den ersten Auftraggeber an – oder lade eine vorhandene Datei, dann erscheint dein Bestand hier.</p>'
+      + '<p>Lege den ersten Auftraggeber an – oder übernimm deinen Bestand aus einer Excel-Liste oder einer gesicherten Datei.</p>'
       + '<div class="es-acts"><button class="pill primary" type="button" id="emptyNew">+ Auftraggeber anlegen</button>'
-      + '<button class="pill" type="button" id="emptyFile">Vorhandene Datei laden</button></div></div>'
+      + '<button class="pill" type="button" id="emptyFile">Datei oder Excel-Liste laden</button></div></div>'
     : '<div class="empty-stage klein"><p>Kein Auftraggeber passt zu Filter und Suche.</p>'
       + '<div class="es-acts"><button class="pill sm" type="button" id="emptyReset">Filter zurücksetzen</button></div></div>';
   const b = $('#emptyNew'); if (b) b.addEventListener('click', () => clientDlg(null));
