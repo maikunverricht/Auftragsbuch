@@ -601,6 +601,94 @@ footer.site .wbl-band.wbl-ok{display:inline;padding:0;border:0;background:none;
   .wbl-band:not(.wbl-ok) .wbl-sp{display:none}
   .wbl-band:not(.wbl-ok) .wbl-btn{display:flex;width:fit-content;margin-top:10px}
 }
+
+/* ═══════ Liste links, Detail rechts (seit 21.11.2026) ═══════
+   Im Stapel bleibt die Bühne über die ganze Breite wie bisher. */
+html,body{overflow-x:clip}
+.head{padding:calc(92px + env(safe-area-inset-top)) 0 0}
+.arbeit{display:grid;grid-template-columns:360px minmax(0,1fr);gap:18px;align-items:start;margin-top:18px}
+body.ab-stapel .arbeit{display:block}
+body:not(.ab-stapel) .ab-liste{position:sticky;top:84px;max-height:calc(100vh - 100px);overflow:auto;border-radius:26px;padding:14px;background:var(--glass);
+  border:1px solid var(--glass-edge);backdrop-filter:blur(24px) saturate(1.35);-webkit-backdrop-filter:blur(24px) saturate(1.35);box-shadow:var(--shadow);scrollbar-width:thin}
+body:not(.ab-stapel) .ab-liste .tools{margin:0;gap:8px}
+body:not(.ab-stapel) .ab-liste .search{flex:1 1 100%;min-width:0}
+body:not(.ab-stapel) .ab-liste .seg{flex:1 1 auto}body:not(.ab-stapel) .ab-liste .seg button{flex:1}
+body:not(.ab-stapel) .ab-liste #newClient{flex:1 1 100%}
+body:not(.ab-stapel) .ab-liste .count{flex-basis:100%;text-align:left;margin:0}
+body:not(.ab-stapel) .stage.liste{margin-top:10px}
+body:not(.ab-stapel) .stage.liste .deck{gap:4px}
+body:not(.ab-stapel) .lrow{padding:10px;border-radius:16px;border:1px solid transparent;background:none;box-shadow:none;gap:12px;
+  transition:background var(--t-s),border-color var(--t-s),transform var(--t-m) var(--kurve)}
+body:not(.ab-stapel) .lrow:hover{background:var(--film);transform:translateX(2px);box-shadow:none}
+body:not(.ab-stapel) .lrow.an{background:color-mix(in srgb,var(--amber) 13%,transparent);border-color:color-mix(in srgb,var(--amber) 45%,transparent)}
+body:not(.ab-stapel) .lrow .l-name{font-size:15px}
+body:not(.ab-stapel) .lrow .l-sub{font-size:12px;color:var(--text-3)}
+body:not(.ab-stapel) .lrow .l-zahl{display:none}
+body:not(.ab-stapel) .lrow .l-satz{font-size:11px;color:var(--text-3)}
+.mono-badge.av{width:42px;height:42px;border-radius:14px;color:#fff;border:0;font-weight:700;
+  background:linear-gradient(145deg,color-mix(in srgb,var(--c) 70%,#fff) 0%,var(--c) 45%,color-mix(in srgb,var(--c) 60%,#000) 100%);box-shadow:inset 0 1px 1px rgba(255,255,255,.5),0 8px 18px -8px var(--c)}
+
+.arbeit .detail{margin:0;padding:0;border:0;background:none;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;animation:abRein .45s var(--kurve)}
+body.ab-stapel .arbeit .detail{margin-top:26px}
+@keyframes abRein{from{opacity:0;transform:translateY(10px)}}
+.ab-karte{position:relative;border-radius:28px;padding:24px;background:var(--glass);border:1px solid var(--glass-edge);overflow:hidden;
+  backdrop-filter:blur(24px) saturate(1.35);-webkit-backdrop-filter:blur(24px) saturate(1.35);box-shadow:var(--shadow)}
+.ab-karte + .ab-karte{margin-top:16px}
+.ab-karte.kopf::before{content:"";position:absolute;width:520px;height:520px;right:-180px;top:-260px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,color-mix(in srgb,var(--c) 32%,transparent),transparent 65%)}
+.ab-karte.kopf.inactive{opacity:.75}
+.k-oben{position:relative;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.k-oben .mono-badge.av{width:72px;height:72px;border-radius:22px;font-size:22px}
+.k-oben h2{margin:6px 0 2px;font-size:clamp(28px,3.4vw,42px);font-weight:800;font-variation-settings:'wdth' 116;letter-spacing:-.03em;line-height:1.04}
+.k-oben .k-sub{color:var(--text-2);font-size:14px}
+.k-oben .k-akt{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.k-kontakt{position:relative;display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+.k-btn{display:flex;align-items:center;gap:10px;min-height:48px;padding:4px 16px 4px 6px;border-radius:16px;border:1px solid var(--line);background:var(--film);
+  font-size:14px;color:var(--text);text-decoration:none;max-width:100%;transition:transform var(--t-m) var(--kurve),border-color var(--t-s)}
+a.k-btn:hover{transform:translateY(-2px);border-color:var(--c)}
+.k-btn i{width:36px;height:36px;flex:none;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 18%,transparent);color:var(--c)}
+.k-btn i svg{width:18px;height:18px}
+.k-btn span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.k-btn small{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3)}
+.k-zahlen{position:relative;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:20px}
+.k-zahlen div{padding:12px 14px;border-radius:16px;background:var(--film);border:1px solid var(--line);min-width:0}
+.k-zahlen small{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.k-zahlen b{display:block;margin-top:4px;font-size:22px;font-weight:800;font-variation-settings:'wdth' 114;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.k-zahlen b span{font-size:13px;font-weight:500;color:var(--text-2);margin-left:3px}
+.ab-karte .hc-badges{position:relative;justify-content:flex-start;margin-top:14px}
+.ab-karte .notes{position:relative;margin-top:14px}
+.ab-karte.auf{padding:8px 18px 14px}
+.ab-karte.auf .fold{border-top:0;padding-left:0;padding-right:0}
+.ab-karte.auf .fold h3{font-size:18px}
+.ab-karte .olist{border:0;background:none}
+.oring{--p:0;--c:var(--ok);position:relative;width:40px;height:40px;flex:none}
+.oring::before{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(var(--c) calc(var(--p)*1%),color-mix(in srgb,var(--text-3) 22%,transparent) 0);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px));mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px))}
+.oring span{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--mono);font-size:10px;color:var(--text-2)}
+.oring.warn{--c:var(--warn)}.oring.over{--c:var(--bad)}
+a.zum-status{text-decoration:none}
+
+@media (max-width:980px){
+  .arbeit{grid-template-columns:minmax(0,1fr)}
+  body:not(.ab-stapel) .ab-liste{position:static;max-height:none;overflow:visible}
+  body:not(.ab-stapel) .stage.liste .deck{flex-direction:row;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:4px}
+  body:not(.ab-stapel) .lrow{flex:none;width:250px;scroll-snap-align:start;border-color:var(--line)}
+  .k-zahlen{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .k-oben .k-akt{margin-left:0;width:100%}
+  .ab-karte{padding:18px;border-radius:22px}
+  .head{padding-top:calc(70px + env(safe-area-inset-top))}
+  .head .kpis{display:none}
+  .ab-karte .orow-head .rate{display:none}
+  .ab-karte .orow-head{padding-left:0;padding-right:0}
+}
+
+body:not(.ab-stapel) .stage.liste,body:not(.ab-stapel) .stage.liste .deck{border:0;background:none;box-shadow:none;padding:0;backdrop-filter:none;-webkit-backdrop-filter:none}
+body:not(.ab-stapel) .lrow .vc-state{display:none}
+.head{justify-content:flex-start}.head .kpis{margin-left:0}
+.ab-karte .fold{margin-top:6px;border:0;border-radius:0;background:none;padding:12px 0}
+.ab-karte .foldbar{border:0;background:none;padding:6px 0 10px}
+.ab-karte .olist{border:0;border-radius:0;background:none}
+@media (prefers-reduced-motion:reduce){.arbeit .detail{animation:none}}
 </style>
 </head>
 <body>
@@ -623,13 +711,11 @@ footer.site .wbl-band.wbl-ok{display:inline;padding:0;border:0;background:none;
 
 <main>
   <section class="head">
-    <div>
-      <div class="eyebrow">Auftraggeber &amp; Aufträge</div>
-      <h1><span>Das</span> <em>Auftragsbuch.</em></h1>
-    </div>
     <div class="kpis" id="kpis"></div>
   </section>
 
+  <div class="arbeit">
+  <aside class="ab-liste" aria-label="Auftraggeber">
   <section class="tools" aria-label="Filter">
     <div class="search">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -656,7 +742,9 @@ footer.site .wbl-band.wbl-ok{display:inline;padding:0;border:0;background:none;
     <button class="pill icon-btn sm" id="next" type="button" aria-label="Nächster Auftraggeber">›</button>
   </div>
 
+  </aside>
   <section class="detail" id="detail" aria-live="polite"></section>
+  </div>
 </main>
 
 <footer class="site">
@@ -2316,16 +2404,21 @@ function ansichtSetzen(a){
     b.setAttribute('aria-pressed', String(b.dataset.a === a)));
   const st = document.getElementById('stage');
   if (st) st.classList.toggle('liste', a === 'liste');
+  document.body.classList.toggle('ab-stapel', a !== 'liste');
   const nav = document.querySelector('.stage-nav'), az = document.getElementById('az');
   if (nav) nav.hidden = a === 'liste';
   if (az)  az.hidden  = a === 'liste';
   if (typeof view !== 'undefined' && Array.isArray(view)) renderDeck();
 }
+/* Seit 21.11.2026: jede Firma hat ihre Farbe, aus dem Namen abgeleitet. */
+const AB_FARBEN = ['#F2B33D','#2FA894','#5B8DEF','#9C7BE0','#D9A86C','#E2725B','#5AA9C9','#C7A23A'];
+function farbeVon(c){ let h = 0; String(c && (c.id || c.name) || '').split('').forEach(z => { h = (h * 31 + z.charCodeAt(0)) >>> 0; }); return AB_FARBEN[h % AB_FARBEN.length]; }
+const breit = () => matchMedia('(min-width: 981px)').matches;
 function listeHTML(c){
   const o = ordersOf(c.id);
   const open = o.filter(x => OPEN.has(x.status)).length;
   const city = (c.adresse || '').split('\n').filter(Boolean).pop() || '';
-  return '<span class="mono-badge">' + esc(initials(c.name)) + '</span>'
+  return '<span class="mono-badge av" style="--c:' + farbeVon(c) + '">' + esc(initials(c.name)) + '</span>'
     + '<span class="l-main"><h3 class="l-name">' + esc(c.name) + '</h3>'
     + '<span class="l-sub">' + esc(c.ansprechpartner || c.email || city || '—') + '</span></span>'
     + '<span class="l-zahl"><b>' + o.length + '</b> ' + (o.length === 1 ? 'Auftrag' : 'Aufträge')
@@ -2336,12 +2429,18 @@ function listeHTML(c){
 function renderListe(){
   deck.innerHTML = '';
   cards = [];
-  view.forEach(c => {
+  if (center >= view.length) center = 0;
+  view.forEach((c, i) => {
     const el = document.createElement('button');
     el.type = 'button';
-    el.className = 'lrow' + (c.aktiv ? '' : ' inactive');
+    el.className = 'lrow' + (c.aktiv ? '' : ' inactive') + (i === center ? ' an' : '');
+    el.setAttribute('aria-current', String(i === center));
     el.innerHTML = listeHTML(c);
-    el.addEventListener('click', () => clientDlg(c.id));
+    /* Seit 21.11.2026 öffnet ein Tipp die Firma rechts; bearbeitet wird mit ✎. */
+    el.addEventListener('click', () => {
+      center = i; selectedId = c.id; renderListe(); renderDetail();
+      if (!breit()) $('#detail').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block:'start' });
+    });
     deck.appendChild(el);
   });
   const p = document.getElementById('pos'); if (p) p.textContent = view.length || '–';
@@ -2592,6 +2691,13 @@ function bilanzHTML(o){
     + '</div>';
 }
 
+/* Verbrauch als kleiner Ring: gebuchte Stunden gegen das Stundenbudget. */
+function ringVon(o){
+  const z = zeitVonAuftrag(o);
+  if (!z || !o.budgetStunden) return '<span class="oring" title="kein Stundenbudget oder noch nichts gebucht"><span>–</span></span>';
+  const p = z.sec / 36 / o.budgetStunden;
+  return '<span class="oring ' + (p > 100 ? 'over' : p >= 80 ? 'warn' : '') + '" style="--p:' + Math.min(100, p).toFixed(1) + '" title="' + dec.format(z.sec/3600) + ' von ' + dec.format(o.budgetStunden) + ' h"><span>' + Math.round(p) + '</span></span>';
+}
 function orderHTML(o){
   const r = rateOf(o);
   /* Markiert wird, was vom heutigen Standard des Auftraggebers abweicht. */
@@ -2602,6 +2708,7 @@ function orderHTML(o){
   const open = openOrderId === o.id;
   return '<div class="orow">'
     + '<button class="orow-head" type="button" data-row="' + esc(o.id) + '" aria-expanded="' + open + '">'
+    + ringVon(o)
     + '<span class="st" data-s="' + esc(o.status) + '"><i></i>' + esc(o.status) + '</span>'
     + '<span style="min-width:0;flex:1"><span class="nm" style="display:block">' + esc(o.name) + '</span>'
     + (o.projektnummer ? '<span class="pn">' + esc(o.projektnummer) + '</span>' : '') + '</span>'
@@ -2620,7 +2727,8 @@ function orderHTML(o){
     + bilanzHTML(o)
     + (own ? '<div class="o-num" style="font-family:var(--mono);font-size:11px;color:var(--text-3)">* abweichend vom Standard des Auftraggebers</div>' : '')
     + '<div class="o-acts"><button class="pill sm" type="button" data-edit="' + esc(o.id) + '">Bearbeiten</button>'
-    + '<button class="pill sm" type="button" data-dup="' + esc(o.id) + '">Duplizieren</button></div>'
+    + '<button class="pill sm" type="button" data-dup="' + esc(o.id) + '">Duplizieren</button>'
+    + '<a class="pill sm zum-status" href="https://maikunverricht.github.io/Auftragsstatus/#a=' + encodeURIComponent(o.id) + '">Im Auftragsstatus ↗</a></div>'
     + '</div></div></div></div>';
 }
 
@@ -2642,49 +2750,40 @@ function renderDetail({ zoom = false } = {}){
   const tel = c.telefon.replace(/[^\d+]/g, '');
   const openCount = os.filter(o => OPEN.has(o.status)).length;
 
+  const kbtn = (icon, label, wert, href, extern) => wert
+    ? '<a class="k-btn" href="' + esc(href) + '"' + (extern ? ' target="_blank" rel="noopener"' : '') + '><i>' + ICON[icon] + '</i><span><small>' + label + '</small>' + esc(wert) + '</span></a>' : '';
+  const gebucht = zeitVonKunde(c.id);
   box.innerHTML =
-      '<div class="hero-card' + (c.aktiv ? '' : ' inactive') + '" id="heroCard">'
-    + '<button class="pill icon-btn sm edit" type="button" id="editClient" aria-label="Auftraggeber bearbeiten">✎</button>'
-    + '<div class="hc-mono">' + esc(initials(c.name)) + '</div>'
-    + '<div class="hc-eyebrow">Auftraggeber</div>'
+      '<section class="ab-karte kopf' + (c.aktiv ? '' : ' inactive') + '" id="heroCard" style="--c:' + farbeVon(c) + '">'
+    + '<div class="k-oben"><span class="mono-badge av" style="--c:' + farbeVon(c) + '">' + esc(initials(c.name)) + '</span>'
+    + '<div style="min-width:0"><span class="badge ' + (c.aktiv ? 'on' : 'off') + '"><i></i>' + (c.aktiv ? 'aktiv' : 'inaktiv') + '</span>'
     + '<h2>' + esc(c.name) + '</h2>'
-    + '<div class="hc-sub">' + esc(c.ansprechpartner || (c.adresse || '').split('\n').filter(Boolean).pop() || '—') + '</div>'
+    + '<div class="k-sub">' + esc([c.ansprechpartner, (c.adresse || '').split('\n').filter(Boolean).pop()].filter(Boolean).join(' · ') || '—') + '</div></div>'
+    + '<div class="k-akt"><button class="pill sm" type="button" id="editClient">Bearbeiten</button>'
+    + '<button class="pill sm" type="button" id="toggleActive">' + (c.aktiv ? 'Auf inaktiv setzen' : 'Auf aktiv setzen') + '</button></div></div>'
+    + '<div class="k-kontakt">'
+    + kbtn('mail', 'E-Mail', c.email, 'mailto:' + c.email)
+    + kbtn('tel', 'Anrufen', c.telefon, 'tel:' + tel)
+    + (tel ? kbtn('sms', 'Nachricht', 'SMS', 'sms:' + tel) : '')
+    + kbtn('map', 'Adresse', (c.adresse || '').replace(/\n/g, ', '), 'https://maps.google.com/?q=' + encodeURIComponent((c.adresse || '').replace(/\n/g, ', ')), true)
+    + '</div>'
+    + '<div class="k-zahlen">'
+    + '<div><small>Aufträge</small><b>' + os.length + '<span>· ' + openCount + ' offen</span></b></div>'
+    + '<div><small>Budget offen</small><b>' + (sumE ? eur.format(sumE) : '–') + '</b></div>'
+    + '<div><small>Stunden offen</small><b>' + (sumH ? dec.format(sumH) + '<span>h</span>' : '–') + '</b></div>'
+    + '<div><small>Stundensatz</small><b>' + (c.stundensatz != null ? eur.format(c.stundensatz) + '<span>/h</span>' : '–') + '</b></div>'
+    + '<div><small>Zahlungsziel</small><b>' + (c.zahlungsziel != null ? c.zahlungsziel + '<span>Tage</span>' : '–') + '</b></div>'
+    + '</div>'
     + '<div class="hc-badges">'
-    + '<span class="badge ' + (c.aktiv ? 'on' : 'off') + '"><i></i>' + (c.aktiv ? 'aktiv' : 'inaktiv') + '</span>'
-    + '<span class="badge">' + os.length + ' Aufträge</span>'
     + kontoBadge(c.id)
-    + (zeitVonKunde(c.id) ? '<span class="badge book"><i></i>' + dec.format(zeitVonKunde(c.id).sec/3600) + ' h gebucht</span>' : '')
+    + (gebucht ? '<span class="badge book"><i></i>' + dec.format(gebucht.sec/3600) + ' h gebucht</span>' : '')
     + (notizenVon(c) ? '<a class="badge note" href="https://maikunverricht.github.io/NoteOS/" target="_blank" rel="noopener">' + notizenVon(c) + (notizenVon(c) === 1 ? ' Notiz' : ' Notizen') + ' ↗</a>' : '')
-    + (sumE ? '<span class="badge">' + eur.format(sumE) + ' offen</span>' : '')
-    + (sumH ? '<span class="badge">' + dec.format(sumH) + ' h offen</span>' : '')
+    + (c.steuersatz != null ? '<span class="badge">' + dec.format(c.steuersatz) + ' % Steuer</span>' : '')
+    + (grenzeAm(c, ymHeute()) != null ? '<span class="badge">Auszahlungsgrenze ' + eur2.format(grenzeAm(c, ymHeute())) + ' / Monat</span>' : '')
     + '</div>'
-    + '<div class="hc-actions">'
-    + actionHTML('sms',  'Nachricht', 'sms:' + tel, !!tel)
-    + actionHTML('tel',  'Anrufen',   'tel:' + tel, !!tel)
-    + actionHTML('mail', 'E-Mail',    'mailto:' + c.email, !!c.email)
-    + actionHTML('map',  'Adresse',   'https://maps.google.com/?q=' + encodeURIComponent(c.adresse.replace(/\n/g, ', ')), !!c.adresse)
-    + '</div>'
-    /* Kontakt steht auf der Karte – nur was ausgefüllt ist. Die Tafel
-       darunter trägt allein die Konditionen, nichts doppelt. */
-    + ((c.email || c.telefon || c.adresse) ? '<div class="hc-kontakt">'
-        + (c.telefon ? '<a href="tel:' + esc(tel) + '">' + esc(c.telefon) + '</a>' : '')
-        + (c.email ? '<a href="mailto:' + esc(c.email) + '">' + esc(c.email) + '</a>' : '')
-        + (c.adresse ? '<span>' + esc(c.adresse).replace(/\n/g, ' · ') + '</span>' : '')
-        + '</div>' : '')
-    + '</div>'
-
-    + '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:16px">'
-    + '<button class="pill sm" type="button" id="toggleActive">' + (c.aktiv ? 'Auf inaktiv setzen' : 'Auf aktiv setzen') + '</button>'
-    + '</div>'
-
-    + '<dl class="fields">'
-    + fld('Standard-Stundensatz', c.stundensatz != null ? eur2.format(c.stundensatz) + ' / h' : '')
-    + fld('Zahlungsziel', c.zahlungsziel != null ? c.zahlungsziel + ' Tage' : '')
-    + fld('Steuersatz', c.steuersatz != null ? dec.format(c.steuersatz) + ' %' : '')
-    + (grenzeAm(c, ymHeute()) != null ? fld('Auszahlungsgrenze', eur2.format(grenzeAm(c, ymHeute())) + ' / Monat') : '')
-    + '</dl>'
     + (c.notizen ? '<dl class="notes"><dt>Notizen</dt><dd>' + esc(c.notizen) + '</dd></dl>' : '')
-
+    + '</section>'
+    + '<section class="ab-karte auf">'
     + '<button class="fold" type="button" id="foldOrders" aria-expanded="' + foldOpen + '" aria-controls="ordersWrap">'
     + '<h3>Aufträge</h3>'
     + '<span class="badge">' + os.length + '</span>'
@@ -2696,7 +2795,7 @@ function renderDetail({ zoom = false } = {}){
     + '</div><button class="pill primary sm" type="button" id="newOrder">+ Auftrag</button></div>'
     + (shown.length ? '<div class="olist">' + shown.map(orderHTML).join('') + '</div>'
         : '<div class="olist"><p class="hint">' + (os.length ? 'Kein Auftrag in dieser Auswahl.' : 'Noch kein Auftrag für ' + esc(c.name) + '.') + '</p></div>')
-    + '</div></div>';
+    + '</div></div></section>';
 
   $('#editClient').addEventListener('click', () => clientDlg(c.id));
   $('#toggleActive').addEventListener('click', () => { c.aktiv = !c.aktiv; save(); render(); });
@@ -2929,8 +3028,19 @@ $('meta[name="theme-color"]').content = root.getAttribute('data-theme') === 'lig
 $('#yr').textContent = new Date().getFullYear();
 addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
 
+/* Seit 21.11.2026: #k=<id> öffnet diesen Auftraggeber (Sprung aus dem Auftragsstatus). */
+function hashWahl(){
+  const m = String(location.hash || '').match(/[#&]k=([^&]+)/); if (!m) return false;
+  const id = decodeURIComponent(m[1]);
+  if (!data.auftraggeber.some(c => String(c.id) === id)) return false;
+  if (!view.some(c => String(c.id) === id)) { filter = 'alle'; query = ''; letter = null; const q = $('#q'); if (q) q.value = ''; setSeg(); recompute(); }
+  const i = view.findIndex(c => String(c.id) === id); if (i < 0) return false;
+  center = i; selectedId = view[i].id; return true;
+}
+addEventListener('hashchange', () => { if (hashWahl()) { renderDeck(); renderDetail(); } });
 function render(){
   recompute();
+  if (!render.erst) { render.erst = true; hashWahl(); }
   /* Leer heißt: gar kein Bestand. Dann treten Kopfzahlen, Filter und
      Alphabet zurück. Die Bühne wird flach, sobald nichts zu zeigen ist. */
   document.body.classList.toggle('leer', !data.auftraggeber.length);
